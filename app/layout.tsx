@@ -11,15 +11,6 @@ export const metadata: Metadata = {
   // manifest: "/manifest.json",
 };
 
-// Move viewport & themeColor here
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#00a159ff",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
