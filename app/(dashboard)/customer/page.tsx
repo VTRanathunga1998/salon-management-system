@@ -1,4 +1,4 @@
-import { Customer, Invoice, Prisma } from "@prisma/client";
+import { Customer, Prisma } from "@prisma/client";
 import EmptyState from "@/components/EmptyState";
 import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";

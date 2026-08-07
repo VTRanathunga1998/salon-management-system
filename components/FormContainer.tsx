@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import FormModal from "./FormModal";
 
 export type FormContainerProps = {
-  table: "invoice" | "customer" | "employee" | "service";
+  table: "invoice" | "customer" | "employee" | "service" | "appointment";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
@@ -44,6 +44,48 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           employees,
           services: services.map((s) => ({ ...s, price: Number(s.price) })),
         };
+        break;
+      }
+      case "appointment": {
+        const [customers, employees, services] = await Promise.all([
+          prisma.customer.findMany({
+            select: { id: true, name: true, phone: true },
+            orderBy: { name: "asc" },
+          }),
+          prisma.employee.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+          prisma.service.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+        ]);
+
+        relatedData = { customers, employees, services };
+
+        if (type === "update" && data?.id) {
+          const fullAppointment = await prisma.appointment.findUnique({
+            where: { id: data.id },
+            include: {
+              customer: { select: { id: true, name: true } },
+              services: {
+                select: {
+                  id: true,
+                  serviceId: true,
+                  employeeId: true,
+                  serviceNameSnapshot: true,
+                },
+              },
+            },
+          });
+          if (fullAppointment) {
+            data = fullAppointment;
+          }
+        }
+
         break;
       }
     }

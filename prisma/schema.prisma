@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
 enum UserRole {
   OWNER
   MANAGER
@@ -19,14 +26,12 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
-// Status of an individual payment transaction/event
 enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
 }
 
-// Status of the invoice as a whole - the source of truth for "is this paid"
 enum InvoiceStatus {
   DRAFT // being built, not yet finalized/printed
   ISSUED // finalized, awaiting payment
@@ -72,6 +77,7 @@ model Customer {
   address String?
 
   invoices Invoice[]
+  appointments Appointment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,6 +96,7 @@ model Employee {
   isActive Boolean @default(true)
 
   invoiceItems InvoiceItem[]
+  appointmentServices AppointmentService[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,9 +113,59 @@ model Service {
   isActive Boolean @default(true)
 
   invoiceItems InvoiceItem[]
+  appointmentServices AppointmentService[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+
+
+model Appointment {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  date      DateTime // day only, time zeroed — makes date-range filtering simple
+  startTime DateTime // full timestamp (date + start time combined)
+  endTime   DateTime // full timestamp (date + end time combined)
+
+  status AppointmentStatus @default(PENDING)
+
+  notes String?
+
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  services AppointmentService[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([date])
+  @@index([status])
+}
+
+model AppointmentService {
+  id String @id @default(cuid())
+
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  // Optional: staff may not be assigned at booking time, only once confirmed.
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  serviceNameSnapshot String
+
+  @@index([appointmentId])
+  @@index([serviceId])
+  @@index([employeeId])
 }
 
 // Atomic counter used to generate gap-free, race-condition-free invoice numbers.
@@ -199,3 +256,4 @@ model Payment {
 
   @@index([invoiceId])
 }
+

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AppointmentStatus } from "@prisma/client";
 
 //Invoice Item Schema
 export const invoiceItemSchema = z.object({
@@ -156,3 +157,41 @@ export const serviceSchema = z.object({
 
 export type ServiceFormInput = z.input<typeof serviceSchema>;
 export type ServiceSchema = z.output<typeof serviceSchema>;
+
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm, 24-hour
+
+export const appointmentServiceSchema = z.object({
+  serviceId: z.string().min(1, "Service is required"),
+  employeeId: z.string().optional(),
+});
+
+export const appointmentSchema = z
+  .object({
+    id: z.string().optional(),
+    customerId: z.string().min(1, "Customer is required"),
+    date: z.string().min(1, "Date is required"), // "yyyy-mm-dd"
+    startTime: z.string().regex(timeRegex, "Invalid start time"),
+    endTime: z.string().regex(timeRegex, "Invalid end time"),
+    status: z.nativeEnum(AppointmentStatus).default(AppointmentStatus.PENDING),
+    services: z
+      .array(appointmentServiceSchema)
+      .min(1, "Add at least one service"),
+    notes: z.string().optional(),
+    cancelReason: z.string().optional(),
+  })
+  .refine((data) => data.startTime < data.endTime, {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  })
+  .refine(
+    (data) =>
+      data.status !== AppointmentStatus.CANCELLED ||
+      !!data.cancelReason?.trim(),
+    {
+      message: "Please provide a cancellation reason",
+      path: ["cancelReason"],
+    },
+  );
+
+export type AppointmentFormInput = z.input<typeof appointmentSchema>;
+export type AppointmentSchema = z.output<typeof appointmentSchema>;
