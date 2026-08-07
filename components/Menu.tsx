@@ -24,11 +24,11 @@ const menuItems = [
         label: "Customers",
         href: "/customer",
       },
-      {
-        icon: CalendarDays,
-        label: "Appointments",
-        href: "/appointment",
-      },
+        // {
+        //   icon: CalendarDays,
+        //   label: "Appointments",
+        //   href: "/appointment",
+        // },
       {
         icon: Scissors,
         label: "Services",

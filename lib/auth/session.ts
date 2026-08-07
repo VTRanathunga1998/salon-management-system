@@ -42,7 +42,7 @@ export async function getSessionUser() {
 export async function destroySession() {
   const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
   if (sessionId) {
-    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+    await prisma.session.deleteMany({ where: { id: sessionId } });
   }
   (await cookies()).delete(SESSION_COOKIE);
 }
