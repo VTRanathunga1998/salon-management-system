@@ -7,7 +7,7 @@ import { appointmentSchema } from "../formValidationsSchemas";
 type ActionState = {
   success: boolean;
   error: boolean;
-  message: string;
+  message?: string;
 };
 
 function combineDateAndTime(date: string, time: string) {
