@@ -20,6 +20,7 @@ import { createInvoice, updateInvoice } from "@/lib/invoices/actions";
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 import CustomerCombobox from "@/components/Customercombobox";
+import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect ";
 import { toast } from "react-toastify";
 import InvoicePreview from "@/components/invoice/InvoicePreview";
 import InvoiceSuccessPanel from "@/components/invoice/InvoiceSuccessPanel";
@@ -62,9 +63,11 @@ const InvoiceForm = ({
           items: data.items?.map((i: any) => ({
             id: i.id,
             serviceId: i.serviceId,
-            employeeId: i.employeeId,
+            // CHANGED: was `employeeId: i.employeeId` — now reads the join
+            // table rows (each item has `employees: [{ employeeId, ... }]`)
+            employeeIds: i.employees?.map((e: any) => e.employeeId) ?? [],
             quantity: i.quantity,
-          })) ?? [{ serviceId: "", employeeId: "", quantity: 1 }],
+          })) ?? [{ serviceId: "", employeeIds: [], quantity: 1 }],
           discountType: data.discountType ?? "FIXED",
           discountValue: Number(data.discountValue ?? 0),
           taxRate: Number(data.taxRate ?? 0),
@@ -73,7 +76,7 @@ const InvoiceForm = ({
           cancelReason: "",
         }
       : {
-          items: [{ serviceId: "", employeeId: "", quantity: 1 }],
+          items: [{ serviceId: "", employeeIds: [], quantity: 1 }],
           discountType: "FIXED",
           discountValue: 0,
           taxRate: 0,
@@ -219,12 +222,16 @@ const InvoiceForm = ({
     );
     const previewItems = previewData.items.map((item) => {
       const service = serviceMap.get(item.serviceId);
-      const employee = employees.find((e) => e.id === item.employeeId);
+      // CHANGED: was a single employee lookup — now joins every assigned name.
+      const staffNames = item.employeeIds
+        .map((id) => employees.find((e) => e.id === id)?.name)
+        .filter(Boolean)
+        .join(", ");
       const qty = Number(item.quantity) || 0;
       const unitPrice = service?.price ?? 0;
       return {
         serviceName: service?.name ?? "Unknown service",
-        employeeName: employee?.name ?? "Unknown staff",
+        employeeName: staffNames || "Unassigned",
         quantity: qty,
         unitPrice,
         subtotal: unitPrice * qty,
@@ -317,7 +324,7 @@ const InvoiceForm = ({
           <button
             type="button"
             onClick={() =>
-              append({ serviceId: "", employeeId: "", quantity: 1 })
+              append({ serviceId: "", employeeIds: [], quantity: 1 })
             }
             className="text-xs font-medium text-[#7c6f2a] bg-[#FAE27C] hover:brightness-95 rounded-md px-2.5 py-1.5 cursor-pointer"
           >
@@ -355,18 +362,23 @@ const InvoiceForm = ({
                   />
                 </div>
 
+                {/* CHANGED: multi-select instead of a single-value CustomSelect */}
                 <div className="flex-1 min-w-0">
                   <Controller
-                    name={`items.${index}.employeeId` as const}
+                    name={`items.${index}.employeeIds` as const}
                     control={control}
                     render={({ field }) => (
-                      <CustomSelect
+                      <EmployeeMultiSelect
                         label="Staff"
                         placeholder="Select staff…"
                         options={employeeOptions}
-                        value={field.value ?? ""}
+                        value={field.value ?? []}
                         onChange={field.onChange}
-                        error={errors.items?.[index]?.employeeId?.message}
+                        error={
+                          errors.items?.[index]?.employeeIds?.message as
+                            | string
+                            | undefined
+                        }
                       />
                     )}
                   />

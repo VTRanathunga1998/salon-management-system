@@ -83,7 +83,9 @@ interface InvoicePdfProps {
       quantity: number;
       unitPrice: number | string;
       subtotal: number | string;
-      employee: { name: string };
+      // CHANGED: was `employee: { name: string }` — now an array of
+      // join-table rows, one per assigned staff member.
+      employees: { employee: { name: string } }[];
     }[];
     payments?: { amount: number | string }[];
   };
@@ -142,7 +144,9 @@ const InvoicePdfDocument = ({ invoice }: InvoicePdfProps) => {
         {invoice.items.map((item, i) => (
           <View key={i} style={styles.tableRow}>
             <Text style={styles.colService}>{item.serviceNameSnapshot}</Text>
-            <Text style={styles.colStaff}>{item.employee.name}</Text>
+            <Text style={styles.colStaff}>
+              {item.employees.map((e) => e.employee.name).join(", ")}
+            </Text>
             <Text style={styles.colQty}>{item.quantity}</Text>
             <Text style={styles.colPrice}>{money(num(item.unitPrice))}</Text>
             <Text style={styles.colAmount}>{money(num(item.subtotal))}</Text>

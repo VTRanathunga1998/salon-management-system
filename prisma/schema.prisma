@@ -86,16 +86,20 @@ model Customer {
 }
 
 model Employee {
-  id    String  @id @default(cuid())
-  name  String
-  phone String?
-  email String?
+  id      String  @id @default(cuid())
+  name    String
+  phone   String?
+  email   String?
   address String?
 
   // Soft delete: never hard-delete an employee referenced by invoices.
   isActive Boolean @default(true)
 
-  invoiceItems InvoiceItem[]
+  // REMOVED: invoiceItems InvoiceItem[]  <- stale, no longer matches
+  // anything on InvoiceItem now that it goes through the join table.
+  // ADDED: back-reference to the new join table.
+  invoiceItemAssignments InvoiceItemEmployee[]
+
   appointmentServices AppointmentService[]
 
   createdAt DateTime @default(now())
@@ -224,20 +228,31 @@ model InvoiceItem {
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-
-  // Snapshot the service name/price at time of sale so historical invoices
-  // stay accurate even if the Service record is later edited or deactivated.
   serviceNameSnapshot String
 
   quantity  Int     @default(1)
-  unitPrice Decimal @db.Decimal(10, 2) // snapshot of Service.price at sale time
-  subtotal  Decimal @db.Decimal(10, 2) // quantity * unitPrice
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  // One service line can involve multiple staff (e.g. bridal makeup: 3 people).
+  employees InvoiceItemEmployee[]
 
   @@index([invoiceId])
+}
+
+model InvoiceItemEmployee {
+  id String @id @default(cuid())
+
+  invoiceItemId String
+  invoiceItem   InvoiceItem @relation(fields: [invoiceItemId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceItemId, employeeId])
   @@index([employeeId])
 }
+
 
 model Payment {
   id String @id @default(cuid())

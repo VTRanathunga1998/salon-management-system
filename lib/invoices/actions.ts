@@ -12,30 +12,6 @@ type CurrentState = {
   invoice?: any;
 };
 
-// Prisma Decimal instances aren't plain objects, so they can't cross the
-// server -> client boundary. Convert every Decimal field to a plain number
-// before returning an invoice from a server action.
-// function serializeInvoice(invoice: any) {
-//   return {
-//     ...invoice,
-//     subtotal: Number(invoice.subtotal),
-//     discountValue: Number(invoice.discountValue),
-//     discountTotal: Number(invoice.discountTotal),
-//     taxRate: Number(invoice.taxRate),
-//     taxTotal: Number(invoice.taxTotal),
-//     total: Number(invoice.total),
-//     items: invoice.items?.map((item: any) => ({
-//       ...item,
-//       unitPrice: Number(item.unitPrice),
-//       subtotal: Number(item.subtotal),
-//     })),
-//     payments: invoice.payments?.map((p: any) => ({
-//       ...p,
-//       amount: Number(p.amount),
-//     })),
-//   };
-// }
-
 async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
   const seriesKey = new Date().getFullYear().toString();
   const counter = await tx.invoiceCounter.upsert({
@@ -69,11 +45,15 @@ async function resolveItemsAndTotals(
 
     return {
       serviceId: item.serviceId,
-      employeeId: item.employeeId,
       serviceNameSnapshot: service.name,
       quantity: item.quantity,
       unitPrice,
       subtotal,
+      // CHANGED: was `employeeId: item.employeeId` — now creates one join
+      // row per assigned staff member, no split/percentage involved.
+      employees: {
+        create: item.employeeIds.map((employeeId) => ({ employeeId })),
+      },
     };
   });
 
@@ -96,7 +76,8 @@ async function resolveItemsAndTotals(
 
 const invoiceInclude = {
   customer: true,
-  items: { include: { employee: true } },
+  // CHANGED: was `items: { include: { employee: true } } }`
+  items: { include: { employees: { include: { employee: true } } } },
   payments: { where: { status: "COMPLETED" as const } },
 };
 
@@ -175,8 +156,6 @@ export async function updateInvoice(
         throw new Error("This invoice has been cancelled and can't be edited.");
       }
 
-      // console.log("data status", data.status, "existing status", existing.status);
-
       // Cancellation is its own path — don't touch items/totals at all.
       if (data.status === "CANCELLED") {
         return tx.invoice.update({
@@ -203,6 +182,8 @@ export async function updateInvoice(
       // already been paid — adding services to a partially-paid invoice
       // can push it back from PARTIALLY_PAID to ISSUED-equivalent balance,
       // or a reduction could tip it over into fully PAID.
+      // NOTE: deleteMany on InvoiceItem cascades to InvoiceItemEmployee too
+      // (onDelete: Cascade on that relation), so no separate cleanup needed.
       await tx.invoiceItem.deleteMany({ where: { invoiceId: data.id } });
 
       const paidAgg = await tx.payment.aggregate({

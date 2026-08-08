@@ -14,7 +14,8 @@ export async function GET(
     where: { id },
     include: {
       customer: true,
-      items: { include: { employee: true } },
+      // CHANGED: was `items: { include: { employee: true } } }`
+      items: { include: { employees: { include: { employee: true } } } },
       payments: { where: { status: "COMPLETED" } },
     },
   });
@@ -35,6 +36,8 @@ export async function GET(
           ...item,
           unitPrice: Number(item.unitPrice),
           subtotal: Number(item.subtotal),
+          // `employees` array passes through unchanged via `...item` — no
+          // Decimal fields on the join rows, nothing to convert.
         })),
         payments: invoice.payments.map((p) => ({
           amount: Number(p.amount),

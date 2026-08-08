@@ -32,8 +32,13 @@ export async function getReportData({ from, to }: ReportFilters) {
             quantity: true,
             serviceId: true,
             serviceNameSnapshot: true,
-            employeeId: true,
-            employee: { select: { name: true } },
+            // CHANGED: was `employeeId: true, employee: { select: { name: true } } }`
+            employees: {
+              select: {
+                employeeId: true,
+                employee: { select: { name: true } },
+              },
+            },
           },
         },
         payments: { where: { status: "COMPLETED" }, select: { amount: true } },
@@ -110,15 +115,23 @@ export async function getReportData({ from, to }: ReportFilters) {
     customerMap.set(inv.customerId, custEntry);
 
     for (const item of inv.items) {
-      const empEntry = employeeMap.get(item.employeeId) ?? {
-        employeeId: item.employeeId,
-        name: item.employee.name,
-        servicesCount: 0,
-        revenue: 0,
-      };
-      empEntry.servicesCount += item.quantity;
-      empEntry.revenue += Number(item.subtotal);
-      employeeMap.set(item.employeeId, empEntry);
+      // CHANGED: was a single `item.employeeId` — now loop every employee
+      // assigned to this line. Each gets full credit for the service count
+      // AND the full line revenue (no split), per the earlier decision —
+      // so employee revenue totals will exceed invoicedTotal when lines
+      // have multiple staff. That's intentional: this tracks "who did
+      // what", not a payroll-accurate revenue split.
+      for (const assignment of item.employees) {
+        const empEntry = employeeMap.get(assignment.employeeId) ?? {
+          employeeId: assignment.employeeId,
+          name: assignment.employee.name,
+          servicesCount: 0,
+          revenue: 0,
+        };
+        empEntry.servicesCount += item.quantity;
+        empEntry.revenue += Number(item.subtotal);
+        employeeMap.set(assignment.employeeId, empEntry);
+      }
 
       const svcEntry = serviceMap.get(item.serviceId) ?? {
         serviceId: item.serviceId,

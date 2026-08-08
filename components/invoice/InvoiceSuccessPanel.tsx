@@ -97,7 +97,10 @@ const InvoiceSuccessPanel = ({
         customer={current.customer}
         items={current.items.map((item: any) => ({
           serviceName: item.serviceNameSnapshot,
-          employeeName: item.employee?.name ?? "—",
+          // CHANGED: was `item.employee?.name ?? "—"` — now joins every
+          // assigned staff member's name.
+          employeeName:
+            item.employees?.map((e: any) => e.employee.name).join(", ") || "—",
           quantity: item.quantity,
           unitPrice: Number(item.unitPrice),
           subtotal: Number(item.subtotal),

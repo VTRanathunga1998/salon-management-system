@@ -13,6 +13,24 @@ type InvoiceList = Invoice & {
     id: string;
     name: string;
   };
+  items: {
+    id: string;
+    serviceId: string;
+    serviceNameSnapshot: string;
+    quantity: number;
+    unitPrice: unknown;
+    subtotal: unknown;
+    employees: {
+      employeeId: string;
+      employee: { id: string; name: string };
+    }[];
+  }[];
+  payments: {
+    id: string;
+    amount: unknown;
+    method: string;
+    status: string;
+  }[];
 };
 
 const InvoicesListPage = async ({
@@ -92,7 +110,7 @@ const InvoicesListPage = async ({
       where: query,
       include: {
         customer: true,
-        items: { include: { employee: true } },
+        items: { include: { employees: { include: { employee: true } } } },
         payments: { where: { status: "COMPLETED" } },
       },
       take: ITEM_PER_PAGE,

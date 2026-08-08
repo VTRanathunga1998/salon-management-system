@@ -5,7 +5,12 @@ import { AppointmentStatus } from "@prisma/client";
 export const invoiceItemSchema = z.object({
   id: z.string().optional(),
   serviceId: z.string().min(1, { message: "Service is required!" }),
-  employeeId: z.string().min(1, { message: "Employee is required!" }),
+  employeeIds: z
+    .array(z.string())
+    .min(1, { message: "Assign at least one staff member!" })
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "The same staff member is assigned twice!",
+    }),
   quantity: z.coerce
     .number()
     .int()
