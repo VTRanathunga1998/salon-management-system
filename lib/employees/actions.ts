@@ -21,12 +21,8 @@ export async function createEmployee(
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         OR: [
-          {
-            phone: validated.phone,
-          },
-          {
-            email: validated.email,
-          },
+          ...(validated.phone ? [{ phone: validated.phone }] : []),
+          ...(validated.email ? [{ email: validated.email }] : []),
         ],
       },
     });
@@ -42,7 +38,7 @@ export async function createEmployee(
     await prisma.employee.create({
       data: {
         name: validated.name,
-        phone: validated.phone || null,
+        phone: validated.phone,
         email: validated.email || null,
         address: validated.address || null,
       },
@@ -80,15 +76,39 @@ export async function updateEmployee(
       };
     }
 
+    // Check whether another employee already uses
+    // the new phone number or email.
+    const existingEmployee = await prisma.employee.findFirst({
+      where: {
+        id: {
+          not: validated.id,
+        },
+        OR: [
+          ...(validated.phone ? [{ phone: validated.phone }] : []),
+          ...(validated.email ? [{ email: validated.email }] : []),
+        ],
+      },
+    });
+
+    if (existingEmployee) {
+      return {
+        success: false,
+        error: true,
+        message:
+          "Another employee with this phone number or email already exists.",
+      };
+    }
+
     await prisma.employee.update({
       where: {
         id: validated.id,
       },
       data: {
         name: validated.name,
-        phone: validated.phone || null,
+        phone: validated.phone,
         email: validated.email || null,
         address: validated.address || null,
+        isActive: validated.isActive,
       },
     });
 
@@ -107,7 +127,6 @@ export async function updateEmployee(
     };
   }
 }
-
 // Soft Delete Employee
 export async function deleteEmployee(
   currentState: CurrentState,
@@ -116,15 +135,21 @@ export async function deleteEmployee(
   const id = formData.get("id") as string;
 
   if (!id) {
-    return { success: false, error: true, message: "Missing employee id." };
+    return {
+      success: false,
+      error: true,
+      message: "Missing employee id.",
+    };
   }
 
   try {
-    const invoiceItem = await prisma.invoiceItem.findFirst({
-      where: { employeeId: id },
+    const invoiceItemEmployee = await prisma.invoiceItemEmployee.findFirst({
+      where: {
+        employeeId: id,
+      },
     });
 
-    if (invoiceItem) {
+    if (invoiceItemEmployee) {
       return {
         success: false,
         error: true,
@@ -133,11 +158,20 @@ export async function deleteEmployee(
       };
     }
 
-    await prisma.employee.delete({ where: { id } });
+    await prisma.employee.delete({
+      where: {
+        id,
+      },
+    });
 
-    return { success: true, error: false, message: "Employee deleted." };
+    return {
+      success: true,
+      error: false,
+      message: "Employee deleted.",
+    };
   } catch (err) {
     console.error(err);
+
     return {
       success: false,
       error: true,

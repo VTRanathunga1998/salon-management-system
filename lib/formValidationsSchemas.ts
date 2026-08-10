@@ -67,32 +67,64 @@ export type InvoiceFormInput = z.input<typeof invoiceSchema>;
 export type InvoiceSchema = z.output<typeof invoiceSchema>;
 
 // Employee Schema
+
+// Shared helpers — keep these in one place if you haven't already,
+// since customerSchema uses the same logic.
+const toTitleCase = (str: string) =>
+  str
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (_, sep, char) => sep + char.toUpperCase());
+
+const trimAndLower = (val: unknown) =>
+  typeof val === "string" ? val.trim().toLowerCase() : val;
+
+const trimValue = (val: unknown) =>
+  typeof val === "string" ? val.trim() : val;
+
 export const employeeSchema = z.object({
   id: z.string().optional(),
 
   name: z
     .string()
-    .min(2, {
-      message: "Employee name must be at least 2 characters long!",
-    })
-    .max(100),
+    .trim()
+    .min(3, "Employee name must be at least 3 characters long!")
+    .max(50, "Name is too long")
+    .regex(
+      /^[a-zA-Z\s'-]+$/,
+      "Name can only contain letters, spaces, hyphens, and apostrophes",
+    )
+    .transform(toTitleCase),
 
+  // Optional field — allow "" (not provided) OR a valid 10-digit local number.
   phone: z
     .string()
-    .max(15, {
-      message: "Phone number cannot exceed 15 digits!",
-    })
-    .optional()
-    .or(z.literal("")),
+    .trim()
+    .min(1, "Phone number is required")
+    .regex(/^\d+$/, "Phone number can only contain digits")
+    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0712345678)"),
 
+  // Optional field — allow "" OR a valid, lowercased email.
   email: z
-    .string()
-    .email({
-      message: "Invalid email address!",
-    })
-    .optional()
-    .or(z.literal("")),
-  address: z.string().max(255).optional().or(z.literal("")),
+    .preprocess(
+      trimAndLower,
+      z.union([z.literal(""), z.string().email("Enter a valid email address")]),
+    )
+    .optional(),
+
+  // Optional field — title-cased when provided.
+  address: z
+    .preprocess(
+      trimValue,
+      z.union([
+        z.literal(""),
+        z.string().max(100, "Address is too long").transform(toTitleCase),
+      ]),
+    )
+    .optional(),
+
+  isActive: z.boolean().default(true),
 });
 
 export type EmployeeSchema = z.infer<typeof employeeSchema>;
@@ -185,15 +217,6 @@ export const loginSchema = z.object({
 export type LoginSchema = z.infer<typeof loginSchema>;
 
 //customer schema
-
-// "john   doe" -> "John Doe", "mary o'neil" -> "Mary O'neil"
-const toTitleCase = (str: string) =>
-  str
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .replace(/(^|[\s'-])([a-z])/g, (_, sep, char) => sep + char.toUpperCase());
-
 export const customerSchema = z.object({
   id: z.string().optional(),
 
@@ -201,8 +224,8 @@ export const customerSchema = z.object({
     .string()
     .trim()
     .min(1, "Name is required")
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name is too long")
+    .min(3, "Name must be at least 3 characters")
+    .max(50, "Name is too long")
     .regex(
       /^[a-zA-Z\s'-]+$/,
       "Name can only contain letters, spaces, hyphens, and apostrophes",
@@ -227,9 +250,10 @@ export const customerSchema = z.object({
   address: z
     .string()
     .trim()
-    .max(255, "Address is too long")
+    .max(50, "Address is too long")
     .optional()
     .or(z.literal("")),
+  // .transform((value) => (value ? toTitleCase(value) : value)),
 });
 
 export type CustomerSchema = z.infer<typeof customerSchema>;

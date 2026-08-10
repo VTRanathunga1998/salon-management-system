@@ -58,7 +58,20 @@ const EmployeeListPage = async ({
       if (value !== undefined) {
         switch (key) {
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            query.OR = [
+              {
+                name: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+              {
+                phone: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+            ];
             break;
         }
       }
@@ -68,6 +81,9 @@ const EmployeeListPage = async ({
   const [data, count] = await prisma.$transaction([
     prisma.employee.findMany({
       where: query,
+      orderBy: {
+        createdAt: "desc",
+      },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),

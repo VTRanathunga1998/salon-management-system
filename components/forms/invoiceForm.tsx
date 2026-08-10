@@ -24,6 +24,7 @@ import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect ";
 import { toast } from "react-toastify";
 import InvoicePreview from "@/components/invoice/InvoicePreview";
 import InvoiceSuccessPanel from "@/components/invoice/InvoiceSuccessPanel";
+import { AlertCircle } from "lucide-react";
 
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];
@@ -255,10 +256,11 @@ const InvoiceForm = ({
         />
 
         {state.error && (
-          <p className="text-sm text-red-500 bg-red-50 rounded-lg p-2.5">
-            {state.message}
-          </p>
-        )}
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs font-medium text-red-600">{state.message}</p>
+        </div>
+      )}
 
         <div className="flex gap-3">
           <button
@@ -537,9 +539,10 @@ const InvoiceForm = ({
       </div>
 
       {state.error && (
-        <p className="text-sm text-red-500 bg-red-50 rounded-lg p-2.5">
-          {state.message}
-        </p>
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs font-medium text-red-600">{state.message}</p>
+        </div>
       )}
 
       <div className="flex gap-3">

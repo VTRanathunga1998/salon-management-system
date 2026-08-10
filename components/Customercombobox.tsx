@@ -175,19 +175,6 @@ const CustomerCombobox = ({
 
   const handleCreate = async (data: QuickCustomerSchema) => {
     try {
-      /*
-       * At this point:
-       *
-       * React Hook Form
-       *        ↓
-       * Zod (customerSchema — validates AND normalizes: title-cases name,
-       *      lowercases email, enforces digit-only phone)
-       *        ↓
-       * VALID, NORMALIZED data only
-       *
-       * So invalid data cannot reach here, and `data` already reflects
-       * the normalized values (e.g. "john doe" -> "John Doe").
-       */
 
       const result = await createQuickCustomer(data);
 

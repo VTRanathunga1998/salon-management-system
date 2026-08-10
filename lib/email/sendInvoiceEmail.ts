@@ -22,7 +22,15 @@ export async function sendInvoiceEmail(
     where: { id: invoiceId },
     include: {
       customer: true,
-      items: { include: { employee: true } },
+      items: {
+        include: {
+          employees: {
+            include: {
+              employee: true,
+            },
+          },
+        },
+      },
       payments: { where: { status: "COMPLETED" } },
     },
   });

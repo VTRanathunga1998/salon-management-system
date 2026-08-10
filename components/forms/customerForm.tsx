@@ -5,7 +5,7 @@ import { startTransition, useActionState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 import InputField from "@/components/InputField";
 
@@ -22,6 +22,12 @@ type Props = {
   data?: CustomerSchema;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
+
+// Keep these in sync with customerSchema's regex rules. These are UX-level
+// filters only — Zod on submit (and again on the server) is the real guard.
+const stripNonDigits = (value: string) => value.replace(/\D/g, "");
+const stripInvalidNameChars = (value: string) =>
+  value.replace(/[^a-zA-Z\s'-]/g, "");
 
 const CustomerForm = ({ type, data, setOpen }: Props) => {
   const {
@@ -130,6 +136,11 @@ const CustomerForm = ({ type, data, setOpen }: Props) => {
             placeholder: "Ex: John Doe",
             maxLength: 50,
             autoComplete: "name",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              e.currentTarget.value = stripInvalidNameChars(
+                e.currentTarget.value,
+              );
+            },
           }}
         />
 
@@ -140,9 +151,14 @@ const CustomerForm = ({ type, data, setOpen }: Props) => {
           error={errors.phone}
           width="md:w-full"
           inputProps={{
+            type: "tel",
+            inputMode: "numeric",
             placeholder: "Ex: 071XXXXXXX",
-            maxLength: 50,
+            maxLength: 10,
             autoComplete: "tel",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              e.currentTarget.value = stripNonDigits(e.currentTarget.value);
+            },
           }}
         />
 
@@ -156,6 +172,15 @@ const CustomerForm = ({ type, data, setOpen }: Props) => {
             placeholder: "Ex: john.doe@example.com",
             maxLength: 50,
             autoComplete: "email",
+            autoCapitalize: "none",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              // Lowercase as-you-type, preserving cursor position so it
+              // doesn't jump to the end of the field on every keystroke.
+              const el = e.currentTarget;
+              const cursor = el.selectionStart;
+              el.value = el.value.toLowerCase();
+              if (cursor !== null) el.setSelectionRange(cursor, cursor);
+            },
           }}
         />
 
@@ -167,16 +192,17 @@ const CustomerForm = ({ type, data, setOpen }: Props) => {
           width="md:w-full"
           inputProps={{
             placeholder: "Ex: 123 Main St, City, Country",
-            maxLength: 100,
+            maxLength: 50,
             autoComplete: "street-address",
           }}
         />
       </fieldset>
 
-      {state.error && state.message && (
-        <p role="alert" className="text-sm text-red-500">
-          {state.message}
-        </p>
+      {state.error && (
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs font-medium text-red-600">{state.message}</p>
+        </div>
       )}
 
       <div className="flex gap-3">

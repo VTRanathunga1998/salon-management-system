@@ -5,7 +5,7 @@ import { startTransition, useActionState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 import InputField from "@/components/InputField";
 
@@ -22,6 +22,11 @@ type Props = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+// Keep in sync with employeeSchema's regex rules — UX-level filtering only.
+const stripNonDigits = (value: string) => value.replace(/\D/g, "");
+const stripInvalidNameChars = (value: string) =>
+  value.replace(/[^a-zA-Z\s'-]/g, "");
+
 const EmployeeForm = ({ type, data, setOpen }: Props) => {
   const {
     register,
@@ -35,6 +40,7 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
       phone: "",
       email: "",
       address: "",
+      isActive: true,
     },
   });
 
@@ -72,7 +78,6 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
       formAction(formData);
     });
   });
-
   const handleCancel = () => {
     if (isDirty) {
       const confirmClose = window.confirm(
@@ -104,6 +109,19 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
     }
   };
 
+  useEffect(() => {
+    if (data) {
+      reset({
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        email: data.email ?? "",
+        address: data.address ?? "",
+        isActive: data.isActive,
+      });
+    }
+  }, [data, reset]);
+
   return (
     <form
       onSubmit={onSubmit}
@@ -129,6 +147,11 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
             placeholder: "Ex: John Doe",
             maxLength: 50,
             autoComplete: "name",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              e.currentTarget.value = stripInvalidNameChars(
+                e.currentTarget.value,
+              );
+            },
           }}
         />
 
@@ -139,9 +162,14 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
           error={errors.phone}
           width="md:w-full"
           inputProps={{
+            type: "tel",
+            inputMode: "numeric",
             placeholder: "Ex: 071XXXXXXX",
-            maxLength: 50,
+            maxLength: 10,
             autoComplete: "tel",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              e.currentTarget.value = stripNonDigits(e.currentTarget.value);
+            },
           }}
         />
 
@@ -155,6 +183,13 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
             placeholder: "Ex: john.doe@example.com",
             maxLength: 50,
             autoComplete: "email",
+            autoCapitalize: "none",
+            onInput: (e: React.FormEvent<HTMLInputElement>) => {
+              const el = e.currentTarget;
+              const cursor = el.selectionStart;
+              el.value = el.value.toLowerCase();
+              if (cursor !== null) el.setSelectionRange(cursor, cursor);
+            },
           }}
         />
 
@@ -170,12 +205,20 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
             autoComplete: "street-address",
           }}
         />
+
+        {type === "update" && (
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" {...register("isActive")} />
+            Active (visible when creating new invoices)
+          </label>
+        )}
       </fieldset>
 
-      {state.error && state.message && (
-        <p role="alert" className="text-sm text-red-500">
-          {state.message}
-        </p>
+      {state.error && (
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs font-medium text-red-600">{state.message}</p>
+        </div>
       )}
 
       <div className="flex gap-3">

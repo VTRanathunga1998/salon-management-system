@@ -2,12 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Dispatch, SetStateAction, startTransition, useActionState, useEffect } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  startTransition,
+  useActionState,
+  useEffect,
+} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { serviceSchema, ServiceFormInput, ServiceSchema } from "@/lib/formValidationsSchemas";
+import {
+  serviceSchema,
+  ServiceFormInput,
+  ServiceSchema,
+} from "@/lib/formValidationsSchemas";
 import { createService, updateService } from "@/lib/services/actions";
 import InputField from "@/components/InputField";
+import { AlertCircle } from "lucide-react";
 
 const ServiceForm = ({
   type,
@@ -44,14 +55,17 @@ const ServiceForm = ({
 
   const [state, formAction, pending] = useActionState(
     type === "create" ? createService : updateService,
-    { success: false, error: false, message: "" }
+    { success: false, error: false, message: "" },
   );
 
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast.success(state.message || `Service ${type === "create" ? "created" : "updated"}.`);
+      toast.success(
+        state.message ||
+          `Service ${type === "create" ? "created" : "updated"}.`,
+      );
       setOpen(false);
       router.refresh();
     } else if (state.error) {
@@ -120,7 +134,10 @@ const ServiceForm = ({
       )}
 
       {state.error && (
-        <p className="text-sm text-red-500 bg-red-50 rounded-lg p-2.5">{state.message}</p>
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs font-medium text-red-600">{state.message}</p>
+        </div>
       )}
 
       <div className="flex gap-3">
@@ -136,7 +153,11 @@ const ServiceForm = ({
           disabled={pending}
           className="flex-1 py-2.5 rounded-lg bg-[#C3EBFA] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 transition cursor-pointer"
         >
-          {pending ? "Saving…" : type === "create" ? "Create Service" : "Save Changes"}
+          {pending
+            ? "Saving…"
+            : type === "create"
+              ? "Create Service"
+              : "Save Changes"}
         </button>
       </div>
     </form>

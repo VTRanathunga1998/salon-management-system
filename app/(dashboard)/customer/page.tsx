@@ -29,6 +29,7 @@ const CustomerListPage = async ({
     { header: "Customer Name", accessor: "name" },
     { header: "Email", accessor: "email", className: "hidden md:table-cell" },
     { header: "Phone", accessor: "phone" },
+    { header: "Address", accessor: "address" },
     { header: "Actions", accessor: "actions" },
   ];
 
@@ -40,6 +41,7 @@ const CustomerListPage = async ({
       <td className="py-2">{item.name}</td>
       <td className="py-2 hidden md:table-cell">{item.email}</td>
       <td className="py-2">{item.phone}</td>
+      <td className="py-2">{item.address}</td>
       <td className="py-2">
         <div className="flex flex-col md:flex-row items-center gap-2 py-2">
           <FormContainer table="customer" type="update" data={item} />
@@ -56,7 +58,20 @@ const CustomerListPage = async ({
       if (value !== undefined) {
         switch (key) {
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            query.OR = [
+              {
+                name: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+              {
+                phone: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+            ];
             break;
         }
       }
@@ -66,6 +81,9 @@ const CustomerListPage = async ({
   const [data, count] = await prisma.$transaction([
     prisma.customer.findMany({
       where: query,
+      orderBy: {
+        createdAt: "desc",
+      },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),
