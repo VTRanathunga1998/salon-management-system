@@ -37,12 +37,20 @@ const CustomerForm = ({ type, data, setOpen }: Props) => {
     formState: { errors, isDirty },
   } = useForm<CustomerFormInput, any, CustomerSchema>({
     resolver: zodResolver(customerSchema),
-    defaultValues: data ?? {
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-    },
+    defaultValues: data
+      ? {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          email: data.email ? data.email : "",
+          address: data.address ? data.address : "",
+        }
+      : {
+          name: "",
+          phone: "",
+          email: "",
+          address: "",
+        },
   });
 
   const [state, formAction, pending] = useActionState(

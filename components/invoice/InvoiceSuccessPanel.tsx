@@ -26,6 +26,7 @@ const InvoiceSuccessPanel = ({
   >("CASH");
   const [recording, setRecording] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [lastChange, setLastChange] = useState<number | null>(null);
 
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailAddress, setEmailAddress] = useState(
@@ -49,6 +50,7 @@ const InvoiceSuccessPanel = ({
 
     setRecording(true);
     setPaymentError("");
+    setLastChange(null);
     const res = await recordInvoicePayment(current.id, amount, paymentMethod);
     setRecording(false);
 
@@ -61,21 +63,54 @@ const InvoiceSuccessPanel = ({
     }
 
     setCurrent(res.invoice);
-    toast.success("Payment recorded.");
+
+    if (res.change && res.change > 0) {
+      setLastChange(res.change);
+      toast.success(
+        `Payment recorded. Change due: Rs. ${res.change.toFixed(2)}`,
+      );
+    } else {
+      toast.success("Payment recorded.");
+    }
+
     const newBalance = Number(res.invoice.total) - paidSoFar(res.invoice);
     setPaymentAmount(Math.max(newBalance, 0).toFixed(2));
   };
 
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+
+  const emailIsInvalid =
+    emailAddress.trim() !== "" && !isValidEmail(emailAddress);
+
   const handleSendEmail = async () => {
-    if (!emailAddress.trim()) {
-      setEmailResult({ success: false, message: "Enter an email address." });
+    const email = emailAddress.trim();
+
+    if (!email) {
+      setEmailResult({
+        success: false,
+        message: "Enter an email address.",
+      });
       return;
     }
+
+    if (!isValidEmail(email)) {
+      setEmailResult({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+
     setSendingEmail(true);
     setEmailResult(null);
-    const res = await sendInvoiceEmail(current.id, emailAddress.trim());
+
+    const res = await sendInvoiceEmail(current.id, email);
+
     setSendingEmail(false);
     setEmailResult(res);
+
     if (res.success) {
       toast.success(res.message || "Invoice emailed.");
     } else {
@@ -97,8 +132,6 @@ const InvoiceSuccessPanel = ({
         customer={current.customer}
         items={current.items.map((item: any) => ({
           serviceName: item.serviceNameSnapshot,
-          // CHANGED: was `item.employee?.name ?? "—"` — now joins every
-          // assigned staff member's name.
           employeeName:
             item.employees?.map((e: any) => e.employee.name).join(", ") || "—",
           quantity: item.quantity,
@@ -150,8 +183,20 @@ const InvoiceSuccessPanel = ({
                 {recording ? "Recording…" : "Record Payment"}
               </button>
             </div>
+            {Number(paymentAmount) > balanceDue && (
+              <p className="text-xs text-blue-600">
+                Only Rs. {balanceDue.toFixed(2)} will be recorded as payment —
+                the rest (Rs. {(Number(paymentAmount) - balanceDue).toFixed(2)})
+                is change to hand back, not revenue.
+              </p>
+            )}
             {paymentError && (
               <p className="text-xs text-red-500">{paymentError}</p>
+            )}
+            {lastChange !== null && lastChange > 0 && (
+              <div className="rounded-lg bg-amber-50 text-amber-700 text-sm p-3 font-medium">
+                💵 Change due to customer: Rs. {lastChange.toFixed(2)}
+              </div>
             )}
           </div>
         ) : (
@@ -200,14 +245,19 @@ const InvoiceSuccessPanel = ({
             <input
               type="email"
               value={emailAddress}
-              onChange={(e) => setEmailAddress(e.target.value)}
+              onChange={(e) => {
+                setEmailAddress(e.target.value);
+                setEmailResult(null);
+              }}
               placeholder="customer@example.com"
-              className="ring-[1.5px] ring-gray-200 rounded-lg p-2.5 text-sm focus:outline-none flex-1"
+              className={`ring-[1.5px] rounded-lg p-2.5 text-sm focus:outline-none flex-1 ${
+                emailIsInvalid ? "ring-red-300" : "ring-gray-200"
+              }`}
             />
             <button
               type="button"
               onClick={handleSendEmail}
-              disabled={sendingEmail}
+              disabled={sendingEmail || !emailAddress.trim() || emailIsInvalid}
               className="rounded-lg bg-[#CFCEFF] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 px-4 py-2.5 cursor-pointer"
             >
               {sendingEmail ? "Sending…" : "Send"}

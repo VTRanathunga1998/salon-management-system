@@ -7,6 +7,8 @@ import TableSearch from "@/components/TableSearch";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { serializeData } from "@/lib/utils/serialize";
+import InvoiceStatusFilter from "@/components/invoice/Invoicestatusfilter";
+import { InvoiceStatus } from "@prisma/client";
 
 type InvoiceList = Invoice & {
   customer: {
@@ -100,6 +102,9 @@ const InvoicesListPage = async ({
           case "search":
             query.invoiceNumber = { contains: value, mode: "insensitive" };
             break;
+          case "status":
+            query.status = value as InvoiceStatus;
+            break;
         }
       }
     }
@@ -130,6 +135,8 @@ const InvoicesListPage = async ({
             All Invoices
           </h1>
         </div>
+
+        <InvoiceStatusFilter />
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />

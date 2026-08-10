@@ -53,6 +53,7 @@ const InvoiceForm = ({
     control,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm<InvoiceFormInput, any, InvoiceSchema>({
@@ -119,6 +120,40 @@ const InvoiceForm = ({
   // For create: validate, then show the print-style preview before anything is saved.
   // For update: submit directly — editing an already-issued/partially-paid invoice
   const onSubmit = handleSubmit((formData) => {
+    const subtotal = watchedItems.reduce((sum, item) => {
+      const service = serviceMap.get(item.serviceId);
+
+      if (!service) return sum;
+
+      const qty = Number(item.quantity) || 0;
+
+      return sum + service.price * qty;
+    }, 0);
+
+    const discountValue = Number(formData.discountValue) || 0;
+
+    // Fixed discount cannot be greater than subtotal
+    if (formData.discountType === "FIXED" && discountValue > subtotal) {
+      setError("discountValue", {
+        type: "validate",
+        message: `Discount cannot be greater than subtotal (Rs. ${subtotal.toFixed(
+          2,
+        )}).`,
+      });
+
+      return;
+    }
+
+    // Percentage discount cannot exceed 100%
+    if (formData.discountType === "PERCENTAGE" && discountValue > 100) {
+      setError("discountValue", {
+        type: "validate",
+        message: "Percentage discount cannot be greater than 100%.",
+      });
+
+      return;
+    }
+
     if (type === "create") {
       setPreviewData(formData);
       setStep("preview");
@@ -168,6 +203,8 @@ const InvoiceForm = ({
     discountType === "PERCENTAGE"
       ? (subtotal * discountValue) / 100
       : discountValue;
+  const isDiscountInvalid =
+    discountType === "FIXED" ? discountValue > subtotal : discountValue > 100;
   const taxable = Math.max(subtotal - discountTotal, 0);
   const taxTotal = (taxable * taxRate) / 100;
   const total = taxable + taxTotal;
@@ -204,7 +241,7 @@ const InvoiceForm = ({
     return (
       <InvoiceSuccessPanel
         invoice={state.invoice}
-        heading={type === "create" ? "Invoice Created 🎉" : "Invoice Updated"}
+        heading={type === "create" ? "Invoice Created" : "Invoice Updated"}
         onDone={() => {
           setOpen(false);
           router.refresh();
@@ -256,11 +293,11 @@ const InvoiceForm = ({
         />
 
         {state.error && (
-        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
-          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-          <p className="text-xs font-medium text-red-600">{state.message}</p>
-        </div>
-      )}
+          <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+            <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+            <p className="text-xs font-medium text-red-600">{state.message}</p>
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button
@@ -284,7 +321,15 @@ const InvoiceForm = ({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+        }
+      }}
+      className="flex flex-col gap-5"
+    >
       <h2 className="text-lg font-semibold text-gray-800">
         {type === "create"
           ? "Create Invoice"
@@ -303,18 +348,34 @@ const InvoiceForm = ({
       {data?.id && <input type="hidden" {...register("id")} value={data.id} />}
 
       {/* Customer — type to search, or create a new one inline */}
-      <Controller
-        name="customerId"
-        control={control}
-        render={({ field }) => (
-          <CustomerCombobox
-            customers={customers}
-            value={field.value ?? ""}
-            onChange={field.onChange}
-            error={errors.customerId?.message}
-          />
-        )}
-      />
+      {type === "create" ? (
+        <Controller
+          name="customerId"
+          control={control}
+          render={({ field }) => (
+            <CustomerCombobox
+              customers={customers}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              error={errors.customerId?.message}
+            />
+          )}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-gray-500">Customer</label>
+          <div className="rounded-lg ring-[1.5px] ring-gray-100 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+            {data?.customer?.name}
+            {data?.customer?.phone ? ` — ${data.customer.phone}` : ""}
+            <span className="text-xs text-gray-400 ml-2">
+              (can&apos;t be changed after the invoice is created)
+            </span>
+          </div>
+          {/* Keeps customerId in the submitted form data even though the
+              field itself isn't editable in this view. */}
+          <input type="hidden" {...register("customerId")} />
+        </div>
+      )}
 
       {/* Line items */}
       <div className="flex flex-col gap-2">
@@ -469,6 +530,17 @@ const InvoiceForm = ({
         />
       </div>
 
+      {isDiscountInvalid && (
+        <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-500">
+            {discountType === "FIXED"
+              ? `Discount cannot exceed Rs. ${subtotal.toFixed(2)}.`
+              : "Discount cannot exceed 100%."}
+          </p>
+        </div>
+      )}
+
       {/* Notes — InputField doesn't support textarea, so styled to match manually */}
       <div className="flex flex-col gap-2 w-full">
         <label className="text-xs text-gray-500">Notes (optional)</label>
@@ -555,7 +627,7 @@ const InvoiceForm = ({
         </button>
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || isDiscountInvalid}
           className="flex-1 py-2.5 rounded-lg bg-[#C3EBFA] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 transition cursor-pointer"
         >
           {pending

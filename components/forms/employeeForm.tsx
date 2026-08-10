@@ -35,13 +35,22 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
     formState: { errors, isDirty },
   } = useForm<EmployeeFormInput, any, EmployeeSchema>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: data ?? {
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      isActive: true,
-    },
+    defaultValues: data
+      ? {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          email: data.email ? data.email : "",
+          address: data.address ? data.address : "",
+          isActive: true,
+        }
+      : {
+          name: "",
+          phone: "",
+          email: "",
+          address: "",
+          isActive: true,
+        },
   });
 
   const [state, formAction, pending] = useActionState(

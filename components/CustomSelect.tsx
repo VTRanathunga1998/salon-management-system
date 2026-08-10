@@ -61,7 +61,7 @@ const CustomSelect = ({
           `}
         >
           <span className="truncate">
-            {selected ? selected.label : placeholder ?? "Select…"}
+            {selected ? selected.label : (placeholder ?? "Select…")}
           </span>
           <svg
             viewBox="0 0 20 20"
@@ -79,7 +79,7 @@ const CustomSelect = ({
 
         {open && (
           <div className="absolute z-50 mt-1.5 w-full rounded-lg bg-white shadow-lg ring-1 ring-gray-200 overflow-hidden">
-            <div className="py-1 overflow-y-auto">
+            <div className="py-1 max-h-[220px] overflow-y-auto">
               {options.map((option) => {
                 const isActive = option.value === value;
                 return (
@@ -91,15 +91,20 @@ const CustomSelect = ({
                       setOpen(false);
                     }}
                     className={`flex w-full items-center justify-between px-4 py-2 text-sm transition-colors
-                      ${isActive
-                        ? "bg-blue-50 text-blue-600 font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
+                      ${
+                        isActive
+                          ? "bg-blue-50 text-blue-600 font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
                       }
                     `}
                   >
                     <span>{option.label}</span>
                     {isActive && (
-                      <svg className="size-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <svg
+                        className="size-4 text-blue-500"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
                         <path
                           fillRule="evenodd"
                           clipRule="evenodd"

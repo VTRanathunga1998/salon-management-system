@@ -145,6 +145,66 @@ export async function createCustomer(
   }
 }
 
+// export async function updateCustomer(
+//   prevState: ActionState,
+//   data: unknown,
+// ): Promise<ActionState> {
+//   try {
+//     const validated = customerSchema.parse(data);
+
+//     if (!validated.id) {
+//       return {
+//         success: false,
+//         error: true,
+//         message: "Customer ID is required.",
+//       };
+//     }
+
+//     const existingCustomer = await prisma.customer.findFirst({
+//       where: {
+//         phone: validated.phone,
+//         NOT: {
+//           id: validated.id,
+//         },
+//       },
+//     });
+
+//     if (existingCustomer) {
+//       return {
+//         success: false,
+//         error: true,
+//         message: "A customer with this phone number already exists.",
+//       };
+//     }
+
+//     await prisma.customer.update({
+//       where: {
+//         id: validated.id,
+//       },
+//       data: {
+//         name: validated.name,
+//         phone: validated.phone,
+//         email: validated.email || null,
+//         address: validated.address || null,
+//       },
+//     });
+
+//     return {
+//       success: true,
+//       error: false,
+//       message: "Customer updated successfully.",
+//     };
+//   } catch (error) {
+//     console.error(error);
+
+//     return {
+//       success: false,
+//       error: true,
+//       message: "Failed to update customer.",
+//     };
+//   }
+// }
+
 export async function updateCustomer(
   prevState: ActionState,
   data: unknown,
@@ -157,6 +217,26 @@ export async function updateCustomer(
         success: false,
         error: true,
         message: "Customer ID is required.",
+      };
+    }
+
+    // Don't allow edits once money has actually changed hands for this
+    // customer — keeps invoice records accurate to who was actually billed,
+    // same principle as blocking edits on PAID/CANCELLED invoices themselves.
+    const restrictedInvoice = await prisma.invoice.findFirst({
+      where: {
+        customerId: validated.id,
+        status: { in: ["PAID", "PARTIALLY_PAID"] },
+      },
+      select: { id: true },
+    });
+
+    if (restrictedInvoice) {
+      return {
+        success: false,
+        error: true,
+        message:
+          "This customer has a paid or partially paid invoice, so their details can't be edited.",
       };
     }
 
