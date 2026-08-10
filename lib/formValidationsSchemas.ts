@@ -135,8 +135,14 @@ export const serviceSchema = z.object({
 
   name: z
     .string()
-    .min(2, { message: "Service name must be at least 2 characters long!" })
-    .max(100, { message: "Service name is too long!" }),
+    .trim()
+    .min(3, { message: "Service name must be at least 3 characters long!" })
+    .max(100, { message: "Service name is too long!" })
+    .regex(
+      /^[a-zA-Z\s'-]+$/,
+      "Service name can only contain letters, spaces, hyphens, and apostrophes",
+    )
+    .transform(toTitleCase),
 
   description: z
     .string()
@@ -148,15 +154,17 @@ export const serviceSchema = z.object({
     .number()
     .int({ message: "Duration must be a whole number of minutes!" })
     .min(5, { message: "Duration must be at least 5 minutes!" })
-    .max(600, { message: "Duration seems too long — check this!" }),
+    .max(600, {
+      message: "Duration seems too long — check this!",
+    }),
 
   price: z.coerce
     .number()
-    .min(0, { message: "Price must be a positive number!" })
-    .max(1000000, { message: "Price seems too high — check this!" }),
+    .gt(0, { message: "Price must be greater than 0!" })
+    .max(1000000, {
+      message: "Price seems too high — check this!",
+    }),
 
-  // Soft-delete flag. Defaults to true on create; only ever surfaced
-  // as an editable toggle in the update form.
   isActive: z.boolean().default(true),
 });
 

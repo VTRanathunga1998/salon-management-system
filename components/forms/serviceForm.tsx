@@ -80,8 +80,51 @@ const ServiceForm = ({
     });
   });
 
+  const handleEnterKey = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter") return;
+
+    const target = e.target as HTMLElement;
+
+    // Don't interfere with textarea
+    if (target.tagName === "TEXTAREA") return;
+
+    // Prevent Enter from submitting the form
+    e.preventDefault();
+
+    // Move to the next input
+    if (target.tagName !== "INPUT") return;
+
+    const form = e.currentTarget;
+
+    const inputs = Array.from(
+      form.querySelectorAll(
+        "input:not([type='hidden']):not([type='checkbox']):not(:disabled)",
+      ),
+    ) as HTMLInputElement[];
+
+    const currentIndex = inputs.indexOf(target as HTMLInputElement);
+
+    if (currentIndex >= 0 && currentIndex < inputs.length - 1) {
+      inputs[currentIndex + 1].focus();
+    }
+  };
+
+  const toTitleCase = (str: string) =>
+    str
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .replace(
+        /(^|[\s'-])([a-z])/g,
+        (_, sep, char) => sep + char.toUpperCase(),
+      );
+
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={handleEnterKey}
+      className="flex flex-col gap-5"
+    >
       <h2 className="text-lg font-semibold text-gray-800">
         {type === "create" ? "Create Service" : "Edit Service"}
       </h2>
@@ -93,6 +136,11 @@ const ServiceForm = ({
         name="name"
         register={register}
         error={errors.name}
+        inputProps={{
+          onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+            e.currentTarget.value = toTitleCase(e.currentTarget.value);
+          },
+        }}
       />
 
       <div className="flex flex-col gap-2 w-full">
@@ -122,7 +170,10 @@ const ServiceForm = ({
           name="price"
           register={register}
           error={errors.price}
-          inputProps={{ min: 0, step: "0.01" }}
+          inputProps={{
+            min: 0,
+            step: "1",
+          }}
         />
       </div>
 
