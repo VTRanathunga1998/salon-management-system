@@ -21,6 +21,7 @@ export async function getReportData({ from, to }: ReportFilters) {
       },
       select: {
         id: true,
+        invoiceNumber: true, // NEW — needed for the itemized log below
         total: true,
         status: true,
         createdAt: true,
@@ -32,7 +33,6 @@ export async function getReportData({ from, to }: ReportFilters) {
             quantity: true,
             serviceId: true,
             serviceNameSnapshot: true,
-            // CHANGED: was `employeeId: true, employee: { select: { name: true } } }`
             employees: {
               select: {
                 employeeId: true,
@@ -88,8 +88,8 @@ export async function getReportData({ from, to }: ReportFilters) {
     }),
   );
 
-  // --- Employee performance, service breakdown, customer spend — all derived
-  //     from the same invoice-items pass to avoid re-querying ---
+  // --- Employee performance, service breakdown, customer spend, AND the
+  //     itemized "who did what" log — all derived from the same pass ---
   const employeeMap = new Map<
     string,
     { employeeId: string; name: string; servicesCount: number; revenue: number }
@@ -103,6 +103,18 @@ export async function getReportData({ from, to }: ReportFilters) {
     { customerId: string; name: string; invoiceCount: number; spend: number }
   >();
 
+  interface EmployeeServiceLogRow {
+    employeeId: string;
+    employeeName: string;
+    serviceName: string;
+    customerName: string;
+    invoiceNumber: string;
+    quantity: number;
+    amount: number;
+    date: Date;
+  }
+  const employeeServiceLog: EmployeeServiceLogRow[] = [];
+
   for (const inv of invoices) {
     const custEntry = customerMap.get(inv.customerId) ?? {
       customerId: inv.customerId,
@@ -115,12 +127,13 @@ export async function getReportData({ from, to }: ReportFilters) {
     customerMap.set(inv.customerId, custEntry);
 
     for (const item of inv.items) {
-      // CHANGED: was a single `item.employeeId` — now loop every employee
-      // assigned to this line. Each gets full credit for the service count
-      // AND the full line revenue (no split), per the earlier decision —
-      // so employee revenue totals will exceed invoicedTotal when lines
-      // have multiple staff. That's intentional: this tracks "who did
-      // what", not a payroll-accurate revenue split.
+      // Split this line's revenue evenly across however many employees are
+      // assigned to it. A single-employee line is unaffected (divides by 1).
+      // "Services performed" still gets full credit per employee — they did
+      // participate in the full service — only the money is divided.
+      const employeeCount = item.employees.length || 1;
+      const revenueShare = Number(item.subtotal) / employeeCount;
+
       for (const assignment of item.employees) {
         const empEntry = employeeMap.get(assignment.employeeId) ?? {
           employeeId: assignment.employeeId,
@@ -129,8 +142,21 @@ export async function getReportData({ from, to }: ReportFilters) {
           revenue: 0,
         };
         empEntry.servicesCount += item.quantity;
-        empEntry.revenue += Number(item.subtotal);
+        empEntry.revenue += revenueShare;
         employeeMap.set(assignment.employeeId, empEntry);
+
+        // One row per (employee, service line) — amount reflects this
+        // employee's share, not the full line total, when co-performed.
+        employeeServiceLog.push({
+          employeeId: assignment.employeeId,
+          employeeName: assignment.employee.name,
+          serviceName: item.serviceNameSnapshot,
+          customerName: inv.customer.name,
+          invoiceNumber: inv.invoiceNumber,
+          quantity: item.quantity,
+          amount: revenueShare,
+          date: inv.createdAt,
+        });
       }
 
       const svcEntry = serviceMap.get(item.serviceId) ?? {
@@ -140,10 +166,12 @@ export async function getReportData({ from, to }: ReportFilters) {
         revenue: 0,
       };
       svcEntry.timesPerformed += item.quantity;
-      svcEntry.revenue += Number(item.subtotal);
+      svcEntry.revenue += Number(item.subtotal); // service-level total is unaffected — it's not attributed to any one person
       serviceMap.set(item.serviceId, svcEntry);
     }
   }
+
+  employeeServiceLog.sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const employeeStats = Array.from(employeeMap.values()).sort(
     (a, b) => b.revenue - a.revenue,
@@ -179,6 +207,7 @@ export async function getReportData({ from, to }: ReportFilters) {
     serviceStats,
     topCustomers,
     statusBreakdown,
+    employeeServiceLog, // NEW
   };
 }
 

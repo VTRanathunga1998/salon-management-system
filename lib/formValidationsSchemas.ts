@@ -200,3 +200,18 @@ export const appointmentSchema = z
 
 export type AppointmentFormInput = z.input<typeof appointmentSchema>;
 export type AppointmentSchema = z.output<typeof appointmentSchema>;
+
+export const loginSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(1, "Username is required")
+    .max(50, "Username is too long"),
+
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .min(8, "Password must be at least 8 characters"),
+});
+
+export type LoginSchema = z.infer<typeof loginSchema>;

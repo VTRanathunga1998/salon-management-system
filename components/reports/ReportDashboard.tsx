@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -33,10 +34,29 @@ const ReportDashboard = ({
     serviceStats,
     topCustomers,
     methodBreakdown,
+    employeeServiceLog,
     range,
   } = report;
 
   const pdfUrl = `/api/reports/pdf?from=${toInputDate(from)}&to=${toInputDate(to)}`;
+
+  // Client-side filter over the already-fetched log — no extra server
+  // round-trip needed since the whole range's data is already in memory.
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+
+  const employeeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of employeeServiceLog)
+      map.set(row.employeeId, row.employeeName);
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [employeeServiceLog]);
+
+  const filteredLog =
+    employeeFilter === "all"
+      ? employeeServiceLog
+      : employeeServiceLog.filter((row) => row.employeeId === employeeFilter);
 
   return (
     <div className="flex flex-col gap-6">
@@ -93,7 +113,7 @@ const ReportDashboard = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Employee performance */}
+        {/* Employee performance (summary) */}
         <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">
             Employee Performance
@@ -154,6 +174,73 @@ const ReportDashboard = ({
                 <tr>
                   <td colSpan={3} className="py-4 text-center text-gray-400">
                     No data in this range.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* NEW: itemized "who did what, when" log */}
+      <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <h2 className="text-sm font-semibold text-gray-700">
+            Services by Employee ({filteredLog.length})
+          </h2>
+          <select
+            value={employeeFilter}
+            onChange={(e) => setEmployeeFilter(e.target.value)}
+            className="ring-[1.5px] ring-gray-200 rounded-lg p-2 text-sm bg-white focus:outline-none"
+          >
+            <option value="all">All employees</option>
+            {employeeOptions.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="max-h-96 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-white">
+              <tr className="text-xs text-gray-400 uppercase border-b border-gray-100">
+                <th className="text-left py-2">Date</th>
+                <th className="text-left py-2">Employee</th>
+                <th className="text-left py-2">Service</th>
+                <th className="text-left py-2 hidden md:table-cell">
+                  Customer
+                </th>
+                <th className="text-left py-2 hidden md:table-cell">Invoice</th>
+                <th className="text-center py-2">Qty</th>
+                <th className="text-right py-2">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLog.map((row, i) => (
+                <tr key={i} className="border-b border-gray-50">
+                  <td className="py-2 text-gray-500 whitespace-nowrap">
+                    {new Date(row.date).toLocaleDateString()}
+                  </td>
+                  <td className="py-2">{row.employeeName}</td>
+                  <td className="py-2">{row.serviceName}</td>
+                  <td className="py-2 hidden md:table-cell text-gray-500">
+                    {row.customerName}
+                  </td>
+                  <td className="py-2 hidden md:table-cell text-gray-400">
+                    {row.invoiceNumber}
+                  </td>
+                  <td className="py-2 text-center">{row.quantity}</td>
+                  <td className="py-2 text-right font-medium">
+                    {money(row.amount)}
+                  </td>
+                </tr>
+              ))}
+              {filteredLog.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-4 text-center text-gray-400">
+                    No services in this range.
                   </td>
                 </tr>
               )}
