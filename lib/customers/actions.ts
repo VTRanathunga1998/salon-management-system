@@ -14,20 +14,36 @@ type QuickCustomerInput = {
 type QuickCustomerResult = {
   success: boolean;
   message?: string;
-  customer?: { id: string; name: string; phone: string };
+  customer?: {
+    id: string;
+    name: string;
+    phone: string;
+  };
 };
 
 export async function createQuickCustomer(
   input: QuickCustomerInput,
 ): Promise<QuickCustomerResult> {
-  const name = input.name?.trim();
-  const phone = input.phone?.trim();
-
-  if (!name) return { success: false, message: "Name is required." };
-  if (!phone) return { success: false, message: "Phone is required." };
-
   try {
-    const existing = await prisma.customer.findUnique({ where: { phone } });
+    /*
+     * Validate and normalize everything
+     */
+    const validated = customerSchema.parse({
+      name: input.name,
+      phone: input.phone,
+      email: input.email ?? "",
+      address: input.address ?? "",
+    });
+
+    /*
+     * Check duplicate phone
+     */
+    const existing = await prisma.customer.findUnique({
+      where: {
+        phone: validated.phone,
+      },
+    });
+
     if (existing) {
       return {
         success: false,
@@ -35,20 +51,44 @@ export async function createQuickCustomer(
       };
     }
 
+    /*
+     * Create customer using the VALIDATED + NORMALIZED data
+     */
     const customer = await prisma.customer.create({
       data: {
-        name,
-        phone,
-        email: input.email || null,
-        address: input.address || null,
+        name: validated.name,
+        phone: validated.phone,
+        email: validated.email || null,
+        address: validated.address || null,
       },
-      select: { id: true, name: true, phone: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      },
     });
 
-    return { success: true, customer };
-  } catch (err) {
-    console.error(err);
-    return { success: false, message: "Failed to create customer." };
+    revalidatePath("/customer");
+    revalidatePath("/invoice");
+
+    return {
+      success: true,
+      customer,
+    };
+  } catch (error) {
+    console.error("CREATE QUICK CUSTOMER ERROR:", error);
+
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+
+    return {
+      success: false,
+      message: "Failed to create customer.",
+    };
   }
 }
 
@@ -87,7 +127,6 @@ export async function createCustomer(
         address: validated.address || null,
       },
     });
-
 
     return {
       success: true,
@@ -149,7 +188,6 @@ export async function updateCustomer(
         address: validated.address || null,
       },
     });
-
 
     return {
       success: true,

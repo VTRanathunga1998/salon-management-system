@@ -66,38 +66,6 @@ export const invoiceSchema = z
 export type InvoiceFormInput = z.input<typeof invoiceSchema>;
 export type InvoiceSchema = z.output<typeof invoiceSchema>;
 
-//Customer Schema
-export const customerSchema = z.object({
-  id: z.string().optional(),
-
-  name: z
-    .string()
-    .min(2, {
-      message: "Customer name must be at least 2 characters long!",
-    })
-    .max(100),
-
-  phone: z
-    .string()
-    .min(10, {
-      message: "Phone number must be at least 10 digits!",
-    })
-    .max(15),
-
-  email: z
-    .string()
-    .email({
-      message: "Invalid email address!",
-    })
-    .optional()
-    .or(z.literal("")),
-
-  address: z.string().max(255).optional().or(z.literal("")),
-});
-
-export type CustomerSchema = z.infer<typeof customerSchema>;
-export type CustomerFormInput = z.input<typeof customerSchema>;
-
 // Employee Schema
 export const employeeSchema = z.object({
   id: z.string().optional(),
@@ -215,3 +183,58 @@ export const loginSchema = z.object({
 });
 
 export type LoginSchema = z.infer<typeof loginSchema>;
+
+//customer schema
+
+// "john   doe" -> "John Doe", "mary o'neil" -> "Mary O'neil"
+const toTitleCase = (str: string) =>
+  str
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (_, sep, char) => sep + char.toUpperCase());
+
+export const customerSchema = z.object({
+  id: z.string().optional(),
+
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name is too long")
+    .regex(
+      /^[a-zA-Z\s'-]+$/,
+      "Name can only contain letters, spaces, hyphens, and apostrophes",
+    )
+    .transform(toTitleCase), // <- normalize AFTER validating shape
+
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .regex(/^\d+$/, "Phone number can only contain digits")
+    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0712345678)"),
+
+  email: z
+    .string()
+    .trim()
+    .toLowerCase() // <- normalize BEFORE validating format
+    .email("Enter a valid email address")
+    .optional()
+    .or(z.literal("")),
+
+  address: z
+    .string()
+    .trim()
+    .max(255, "Address is too long")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type CustomerSchema = z.infer<typeof customerSchema>;
+export type CustomerFormInput = z.input<typeof customerSchema>;
+
+// Quick-create (used in CustomerCombobox) reuses the exact same rules, minus id
+export const quickCustomerSchema = customerSchema.omit({ id: true });
+export type QuickCustomerSchema = z.infer<typeof quickCustomerSchema>;

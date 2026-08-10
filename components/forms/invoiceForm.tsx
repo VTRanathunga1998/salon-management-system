@@ -63,8 +63,6 @@ const InvoiceForm = ({
           items: data.items?.map((i: any) => ({
             id: i.id,
             serviceId: i.serviceId,
-            // CHANGED: was `employeeId: i.employeeId` — now reads the join
-            // table rows (each item has `employees: [{ employeeId, ... }]`)
             employeeIds: i.employees?.map((e: any) => e.employeeId) ?? [],
             quantity: i.quantity,
           })) ?? [{ serviceId: "", employeeIds: [], quantity: 1 }],
@@ -119,7 +117,6 @@ const InvoiceForm = ({
 
   // For create: validate, then show the print-style preview before anything is saved.
   // For update: submit directly — editing an already-issued/partially-paid invoice
-  // doesn't need a "draft" preview step, since it's real data being changed in place.
   const onSubmit = handleSubmit((formData) => {
     if (type === "create") {
       setPreviewData(formData);
@@ -176,7 +173,7 @@ const InvoiceForm = ({
 
   const isEditingCancelled = type === "update" && watchedStatus === "CANCELLED";
 
-  // --- Gate: fully paid invoices are read-only — print/download/email only ---
+  // --- Gate: fully paid invoices are read-only ---
   if (type === "update" && data?.status === "PAID") {
     return (
       <InvoiceSuccessPanel
