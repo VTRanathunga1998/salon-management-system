@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "AppointmentStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED');
+
+-- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('OWNER', 'MANAGER', 'RECEPTIONIST');
 
 -- CreateEnum
@@ -52,7 +55,7 @@ CREATE TABLE "Customer" (
 CREATE TABLE "Employee" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "phone" TEXT,
+    "phone" TEXT NOT NULL,
     "email" TEXT,
     "address" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -74,6 +77,34 @@ CREATE TABLE "Service" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Appointment" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "startTime" TIMESTAMP(3) NOT NULL,
+    "endTime" TIMESTAMP(3) NOT NULL,
+    "status" "AppointmentStatus" NOT NULL DEFAULT 'PENDING',
+    "notes" TEXT,
+    "cancelledAt" TIMESTAMP(3),
+    "cancelReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Appointment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppointmentService" (
+    "id" TEXT NOT NULL,
+    "appointmentId" TEXT NOT NULL,
+    "serviceId" TEXT NOT NULL,
+    "employeeId" TEXT,
+    "serviceNameSnapshot" TEXT NOT NULL,
+
+    CONSTRAINT "AppointmentService_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -113,13 +144,21 @@ CREATE TABLE "InvoiceItem" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
     "serviceNameSnapshot" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 1,
     "unitPrice" DECIMAL(10,2) NOT NULL,
     "subtotal" DECIMAL(10,2) NOT NULL,
 
     CONSTRAINT "InvoiceItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InvoiceItemEmployee" (
+    "id" TEXT NOT NULL,
+    "invoiceItemId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+
+    CONSTRAINT "InvoiceItemEmployee_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -148,6 +187,27 @@ CREATE UNIQUE INDEX "Customer_phone_key" ON "Customer"("phone");
 CREATE INDEX "Customer_name_idx" ON "Customer"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Employee_phone_key" ON "Employee"("phone");
+
+-- CreateIndex
+CREATE INDEX "Appointment_customerId_idx" ON "Appointment"("customerId");
+
+-- CreateIndex
+CREATE INDEX "Appointment_date_idx" ON "Appointment"("date");
+
+-- CreateIndex
+CREATE INDEX "Appointment_status_idx" ON "Appointment"("status");
+
+-- CreateIndex
+CREATE INDEX "AppointmentService_appointmentId_idx" ON "AppointmentService"("appointmentId");
+
+-- CreateIndex
+CREATE INDEX "AppointmentService_serviceId_idx" ON "AppointmentService"("serviceId");
+
+-- CreateIndex
+CREATE INDEX "AppointmentService_employeeId_idx" ON "AppointmentService"("employeeId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "InvoiceCounter_seriesKey_key" ON "InvoiceCounter"("seriesKey");
 
 -- CreateIndex
@@ -166,13 +226,28 @@ CREATE INDEX "Invoice_createdAt_idx" ON "Invoice"("createdAt");
 CREATE INDEX "InvoiceItem_invoiceId_idx" ON "InvoiceItem"("invoiceId");
 
 -- CreateIndex
-CREATE INDEX "InvoiceItem_employeeId_idx" ON "InvoiceItem"("employeeId");
+CREATE INDEX "InvoiceItemEmployee_employeeId_idx" ON "InvoiceItemEmployee"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InvoiceItemEmployee_invoiceItemId_employeeId_key" ON "InvoiceItemEmployee"("invoiceItemId", "employeeId");
 
 -- CreateIndex
 CREATE INDEX "Payment_invoiceId_idx" ON "Payment"("invoiceId");
 
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -187,7 +262,10 @@ ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_invoiceId_fkey" FOREIGN KE
 ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InvoiceItemEmployee" ADD CONSTRAINT "InvoiceItemEmployee_invoiceItemId_fkey" FOREIGN KEY ("invoiceItemId") REFERENCES "InvoiceItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InvoiceItemEmployee" ADD CONSTRAINT "InvoiceItemEmployee_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
