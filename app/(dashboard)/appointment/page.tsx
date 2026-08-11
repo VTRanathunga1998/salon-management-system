@@ -8,6 +8,7 @@ import AppointmentFilters from "@/components/appoinment/AppointmentFilters";
 import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
+import { endOfDayInSalonTz, startOfDayInSalonTz } from "@/lib/timezone";
 
 type AppointmentList = Appointment & {
   customer: { id: string; name: string };
@@ -103,13 +104,14 @@ const AppointmentListPage = async ({
         case "from":
           query.date = {
             ...(query.date as object),
-            gte: new Date(`${value}T00:00:00`),
+            gte: startOfDayInSalonTz(value),
           };
           break;
+
         case "to":
           query.date = {
             ...(query.date as object),
-            lte: new Date(`${value}T23:59:59`),
+            lte: endOfDayInSalonTz(value),
           };
           break;
         case "serviceId":

@@ -24,6 +24,14 @@ export function startOfDayInSalonTz(date: string): Date {
   return new Date(`${date}T00:00:00${SALON_UTC_OFFSET}`);
 }
 
+/**
+ * End of the given date, in the salon's timezone.
+ * Returns 23:59:59.999 Sri Lanka time as an absolute Date.
+ */
+export function endOfDayInSalonTz(date: string): Date {
+  return new Date(`${date}T23:59:59.999${SALON_UTC_OFFSET}`);
+}
+
 /** Today's date as "yyyy-mm-dd", read in the salon's timezone — NOT the
  *  server's local timezone. Safe to call from both client and server. */
 export function todayInSalonTz(): string {
