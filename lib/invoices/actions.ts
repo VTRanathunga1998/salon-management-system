@@ -117,9 +117,6 @@ export async function createInvoice(
       });
     });
 
-    // No revalidatePath — the modal stays open for the payment/print/email
-    // step, and the client calls router.refresh() itself when the user
-    // clicks "Done". Revalidating early races with the resolved state.
     return {
       success: true,
       error: false,

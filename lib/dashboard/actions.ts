@@ -1,52 +1,97 @@
 import { prisma } from "@/lib/prisma";
-import { InvoiceStatus, PaymentStatus } from "@prisma/client";
-
-function getTodayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { start, end };
-}
+import {
+  AppointmentStatus,
+  InvoiceStatus,
+  PaymentStatus,
+} from "@prisma/client";
+import { getTodayRangeInSalonTz } from "../timezone";
 
 export async function getDashboardStats() {
-  const { start, end } = getTodayRange();
+  const { start, end } = getTodayRangeInSalonTz();
 
   const [
     totalServices,
     totalCustomers,
     todaysInvoices,
+    todaysAppointments,
     todaysPayments,
     recentInvoicesRaw,
   ] = await Promise.all([
-    prisma.service.count({ where: { isActive: true } }),
+    // Active services
+    prisma.service.count({
+      where: {
+        isActive: true,
+      },
+    }),
+
+    // All customers
     prisma.customer.count(),
-    // Invoices created today — used for both "today's appointments" (count)
-    // and "today's customers" (distinct customerId), excluding cancellations.
+
+    // Invoices created today
     prisma.invoice.findMany({
       where: {
-        createdAt: { gte: start, lt: end },
-        status: { not: InvoiceStatus.CANCELLED },
+        createdAt: {
+          gte: start,
+          lt: end,
+        },
+        status: {
+          not: InvoiceStatus.CANCELLED,
+        },
       },
-      select: { customerId: true },
+      select: {
+        customerId: true,
+      },
     }),
-    // Revenue = money actually collected today, not invoice totals.
+
+    // Actual appointments today
+    prisma.appointment.count({
+      where: {
+        date: {
+          gte: start,
+          lt: end,
+        },
+        status: {
+          not: AppointmentStatus.CANCELLED,
+        },
+      },
+    }),
+
+    // Money actually collected today
     prisma.payment.aggregate({
       where: {
-        paidAt: { gte: start, lt: end },
+        paidAt: {
+          gte: start,
+          lt: end,
+        },
         status: PaymentStatus.COMPLETED,
       },
-      _sum: { amount: true },
+      _sum: {
+        amount: true,
+      },
     }),
+
+    // Recent invoices
     prisma.invoice.findMany({
       take: 6,
-      orderBy: { createdAt: "desc" },
-      include: { customer: { select: { name: true } } },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        customer: {
+          select: {
+            name: true,
+          },
+        },
+      },
     }),
   ]);
 
-  const todaysAppointments = todaysInvoices.length;
-  const todaysCustomers = new Set(todaysInvoices.map((i) => i.customerId)).size;
+  // Distinct customers who had invoices today
+  const todaysCustomers = new Set(
+    todaysInvoices.map((invoice) => invoice.customerId),
+  ).size;
+
+  // Revenue actually received today
   const todaysRevenue = Number(todaysPayments._sum.amount ?? 0);
 
   const recentInvoices = recentInvoicesRaw.map((invoice) => ({

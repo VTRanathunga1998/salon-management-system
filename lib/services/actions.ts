@@ -20,8 +20,6 @@ export async function createService(
       },
     });
 
-    // No revalidatePath — client calls router.refresh() itself after
-    // reacting to this resolved state (avoids the useActionState remount race).
     return { success: true, error: false, message: "Service created." };
   } catch (err) {
     console.error(err);

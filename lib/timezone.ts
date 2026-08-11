@@ -1,15 +1,3 @@
-// Centralizes all timezone handling for appointment scheduling.
-//
-// THE BUG: `new Date("2026-08-15T14:00:00")` (no offset) is parsed in
-// whatever timezone the *server process* happens to be running in — not
-// necessarily the salon's timezone. If the app is deployed to a host in a
-// different region, appointments silently save at the wrong time.
-//
-// THE FIX: always attach an explicit UTC offset when building a Date from
-// a "yyyy-mm-dd" + "HH:mm" pair, so parsing is unambiguous regardless of
-// server locale. Sri Lanka has one fixed offset year-round (no DST), so a
-// hardcoded offset is safe here — no timezone library required.
-
 export const SALON_TIMEZONE = "Asia/Colombo";
 const SALON_UTC_OFFSET = "+05:30";
 
@@ -48,4 +36,13 @@ export function nowTimeInSalonTz(): string {
     minute: "2-digit",
     hour12: false,
   }).format(new Date());
+}
+
+export function getTodayRangeInSalonTz() {
+  const today = todayInSalonTz();
+  const start = startOfDayInSalonTz(today);
+
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  return { start, end };
 }
