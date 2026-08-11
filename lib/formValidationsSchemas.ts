@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AppointmentStatus } from "@prisma/client";
 import { nowTimeInSalonTz, todayInSalonTz } from "./timezone";
+import { ExpenseCategory, PaymentMethod } from "@prisma/client";
 
 //Invoice Item Schema
 export const invoiceItemSchema = z.object({
@@ -321,3 +322,61 @@ export type CustomerFormInput = z.input<typeof customerSchema>;
 // Quick-create (used in CustomerCombobox) reuses the exact same rules, minus id
 export const quickCustomerSchema = customerSchema.omit({ id: true });
 export type QuickCustomerSchema = z.infer<typeof quickCustomerSchema>;
+
+const toSentenceCase = (value: string) => {
+  const trimmed = value.trim();
+
+  if (!trimmed) return "";
+
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+export const expenseSchema = z.object({
+  id: z.string().optional(),
+
+  title: z
+    .string()
+    .trim()
+    .min(2, {
+      message: "Title must be at least 2 characters long!",
+    })
+    .max(150, {
+      message: "Title is too long!",
+    })
+    .transform(toSentenceCase),
+
+  category: z.nativeEnum(ExpenseCategory).default(ExpenseCategory.OTHER),
+
+  amount: z.coerce
+    .number({
+      message: "Amount must be a valid number!",
+    })
+    .gt(0, {
+      message: "Amount must be greater than 0!",
+    })
+    .max(10_000_000, {
+      message: "Amount seems too high — check this!",
+    }),
+
+  method: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
+
+  date: z
+    .string()
+    .min(1, {
+      message: "Date is required!",
+    })
+    .refine((d) => d <= todayInSalonTz(), {
+      message: "Expense date can't be in the future.",
+    }),
+
+  notes: z
+    .string()
+    .max(500, {
+      message: "Notes are too long!",
+    })
+    .optional()
+    .or(z.literal("")),
+});
+
+export type ExpenseFormInput = z.input<typeof expenseSchema>;
+export type ExpenseSchema = z.output<typeof expenseSchema>;

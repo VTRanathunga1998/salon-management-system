@@ -18,6 +18,7 @@ import { deleteCustomer } from "@/lib/customers/actions";
 import { deleteEmployee } from "@/lib/employees/actions";
 import { deleteService } from "@/lib/services/actions";
 import { deleteAppointment } from "@/lib/appoinments/actions";
+import { deleteExpense } from "@/lib/expenses/actions";
 
 const deleteActionMap = {
   invoice: deleteInvoice,
@@ -25,6 +26,7 @@ const deleteActionMap = {
   employee: deleteEmployee,
   service: deleteService,
   appointment: deleteAppointment,
+  expense: deleteExpense,
 };
 
 const InvoiceForm = dynamic(() => import("./forms/invoiceForm"), {
@@ -44,6 +46,10 @@ const ServiceForm = dynamic(() => import("./forms/serviceForm"), {
 });
 
 const AppointmentForm = dynamic(() => import("./forms/appointmentForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+
+const ExpenseForm = dynamic(() => import("./forms/expenseForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 
@@ -79,6 +85,9 @@ const forms: {
       setOpen={setOpen}
       relatedData={relatedData}
     />
+  ),
+  expense: (setOpen, type, data) => (
+    <ExpenseForm type={type} data={data} setOpen={setOpen} />
   ),
 };
 

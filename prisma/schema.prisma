@@ -46,6 +46,16 @@ enum DiscountType {
   PERCENTAGE
 }
 
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  SUPPLIES
+  SALARIES
+  MARKETING
+  MAINTENANCE
+  OTHER
+}
+
 model User {
   id       String   @id @default(cuid())
   username String   @unique
@@ -53,6 +63,7 @@ model User {
   role     UserRole @default(OWNER)
 
   createdInvoices Invoice[] @relation("InvoiceCreatedBy")
+  createdExpenses Expense[] @relation("ExpenseCreatedBy")
   sessions        Session[]
 
   createdAt DateTime @default(now())
@@ -170,8 +181,6 @@ model AppointmentService {
   @@index([employeeId])
 }
 
-// Atomic counter used to generate gap-free, race-condition-free invoice numbers.
-// One row per numbering series (e.g. per year: "INV-2026").
 model InvoiceCounter {
   id           String @id @default(cuid())
   seriesKey    String @unique // e.g. "2026"
@@ -268,4 +277,28 @@ model Payment {
 
   @@index([invoiceId])
 }
+
+model Expense {
+  id String @id @default(cuid())
+
+  title    String
+  category ExpenseCategory @default(OTHER)
+  amount   Decimal         @db.Decimal(10, 2)
+  method   PaymentMethod   @default(CASH)
+
+  date  DateTime 
+  notes String?
+
+  createdById String?
+  createdBy   User?   @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
+}
+
+
+
 

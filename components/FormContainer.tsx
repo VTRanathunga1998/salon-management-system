@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import FormModal from "./FormModal";
 
 export type FormContainerProps = {
-  table: "invoice" | "customer" | "employee" | "service" | "appointment";
+  table: "invoice" | "customer" | "employee" | "service" | "appointment" | "expense";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
