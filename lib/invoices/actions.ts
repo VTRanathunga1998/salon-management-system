@@ -22,6 +22,10 @@ async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
   return `INV-${seriesKey}-${counter.lastNumber.toString().padStart(6, "0")}`;
 }
 
+// Replace the existing resolveItemsAndTotals function in lib/invoices/actions.ts
+// with this version. Everything else in that file (createInvoice, updateInvoice,
+// recordInvoicePayment, deleteInvoice, invoiceInclude) stays exactly as-is.
+
 async function resolveItemsAndTotals(
   tx: Prisma.TransactionClient,
   items: InvoiceSchema["items"],
@@ -40,7 +44,14 @@ async function resolveItemsAndTotals(
     if (!service)
       throw new Error("One of the selected services no longer exists.");
 
-    const unitPrice = service.price;
+    // A custom price overrides the catalog price for this line only —
+    // the catalog itself is untouched. Falls back to the service's
+    // current price when no override was provided.
+    const unitPrice =
+      item.customPrice !== undefined && item.customPrice !== null
+        ? new Prisma.Decimal(item.customPrice)
+        : service.price;
+
     const subtotal = unitPrice.mul(item.quantity);
 
     return {
@@ -49,8 +60,6 @@ async function resolveItemsAndTotals(
       quantity: item.quantity,
       unitPrice,
       subtotal,
-      // CHANGED: was `employeeId: item.employeeId` — now creates one join
-      // row per assigned staff member, no split/percentage involved.
       employees: {
         create: item.employeeIds.map((employeeId) => ({ employeeId })),
       },

@@ -20,6 +20,7 @@ import { createInvoice, updateInvoice } from "@/lib/invoices/actions";
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 import CustomerCombobox from "@/components/Customercombobox";
+import ServiceCombobox from "@/components/ServiceCombobox";
 import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect ";
 import { toast } from "react-toastify";
 import InvoicePreview from "@/components/invoice/InvoicePreview";
@@ -33,7 +34,7 @@ type RelatedData = {
 };
 
 const discountTypeOptions = [
-  { value: "FIXED", label: "Rs. (fixed)" },
+  { value: "FIXED", label: "Rs.  (fixed)" },
   { value: "PERCENTAGE", label: "% (percentage)" },
 ];
 
@@ -67,7 +68,23 @@ const InvoiceForm = ({
             serviceId: i.serviceId,
             employeeIds: i.employees?.map((e: any) => e.employeeId) ?? [],
             quantity: i.quantity,
-          })) ?? [{ serviceId: "", employeeIds: [], quantity: 1 }],
+            // Pre-fill only if this line's saved price actually diverges
+            // from the service's current catalog price — otherwise leave
+            // blank so the field visibly reads as "using catalog price".
+            customPrice:
+              i.unitPrice != null &&
+              relatedData?.services.find((s) => s.id === i.serviceId)?.price !==
+                Number(i.unitPrice)
+                ? Number(i.unitPrice)
+                : undefined,
+          })) ?? [
+            {
+              serviceId: "",
+              employeeIds: [],
+              quantity: 1,
+              customPrice: undefined,
+            },
+          ],
           discountType: data.discountType ?? "FIXED",
           discountValue: Number(data.discountValue ?? 0),
           taxRate: Number(data.taxRate ?? 0),
@@ -76,7 +93,14 @@ const InvoiceForm = ({
           cancelReason: "",
         }
       : {
-          items: [{ serviceId: "", employeeIds: [], quantity: 1 }],
+          items: [
+            {
+              serviceId: "",
+              employeeIds: [],
+              quantity: 1,
+              customPrice: undefined,
+            },
+          ],
           discountType: "FIXED",
           discountValue: 0,
           taxRate: 0,
@@ -117,40 +141,93 @@ const InvoiceForm = ({
     }
   }, [state, router, setOpen, type]);
 
+  const customers = relatedData?.customers ?? [];
+  const services = relatedData?.services ?? [];
+  const employees = relatedData?.employees ?? [];
+
+  const employeeOptions = employees.map((e) => ({
+    value: e.id,
+    label: `${e.name}${!e.isActive ? " (inactive)" : ""}`,
+  }));
+
+  // --- Live totals preview (display only — server recomputes authoritatively) ---
+  const watchedItems = watch("items");
+  const discountType = watch("discountType");
+  const discountValue = Number(watch("discountValue")) || 0;
+  const taxRate = Number(watch("taxRate")) || 0;
+  const watchedStatus = watch("status");
+
+  const serviceMap = new Map(services.map((s) => [s.id, s]));
+
+  // A line's effective price: the custom override if one was actually
+  // entered (blank/undefined means "use the catalog price"), otherwise
+  // whatever the selected service's current price is.
+  const getLineUnitPrice = (item: {
+    serviceId: string;
+    customPrice?: unknown;
+  }) => {
+    const raw = item.customPrice;
+    const hasCustomPrice = raw !== undefined && raw !== null && raw !== "";
+    if (hasCustomPrice) return Number(raw as string | number);
+    return serviceMap.get(item.serviceId)?.price;
+  };
+
+  const subtotal = watchedItems.reduce((sum, item) => {
+    const unitPrice = getLineUnitPrice(item);
+    if (unitPrice == null) return sum;
+    const qty = Number(item.quantity) || 0;
+    return sum + unitPrice * qty;
+  }, 0);
+
+  const discountTotal =
+    discountType === "PERCENTAGE"
+      ? (subtotal * discountValue) / 100
+      : discountValue;
+  const isDiscountInvalid =
+    discountType === "FIXED" ? discountValue > subtotal : discountValue > 100;
+  const taxable = Math.max(subtotal - discountTotal, 0);
+  const taxTotal = (taxable * taxRate) / 100;
+  const total = taxable + taxTotal;
+
+  const isEditingCancelled = type === "update" && watchedStatus === "CANCELLED";
+
   // For create: validate, then show the print-style preview before anything is saved.
   // For update: submit directly — editing an already-issued/partially-paid invoice
   const onSubmit = handleSubmit((formData) => {
-    const subtotal = watchedItems.reduce((sum, item) => {
-      const service = serviceMap.get(item.serviceId);
-
-      if (!service) return sum;
-
+    // Recompute subtotal here too (rather than trusting the render-time
+    // `subtotal` closure) since this runs inside handleSubmit's own callback.
+    const submittedSubtotal = formData.items.reduce((sum, item) => {
+      const unitPrice = getLineUnitPrice(item);
+      if (unitPrice == null) return sum;
       const qty = Number(item.quantity) || 0;
-
-      return sum + service.price * qty;
+      return sum + unitPrice * qty;
     }, 0);
 
-    const discountValue = Number(formData.discountValue) || 0;
+    const submittedDiscountValue = Number(formData.discountValue) || 0;
 
     // Fixed discount cannot be greater than subtotal
-    if (formData.discountType === "FIXED" && discountValue > subtotal) {
+    if (
+      formData.discountType === "FIXED" &&
+      submittedDiscountValue > submittedSubtotal
+    ) {
       setError("discountValue", {
         type: "validate",
-        message: `Discount cannot be greater than subtotal (Rs. ${subtotal.toFixed(
+        message: `Discount cannot be greater than subtotal (Rs.  ${submittedSubtotal.toFixed(
           2,
         )}).`,
       });
-
       return;
     }
 
     // Percentage discount cannot exceed 100%
-    if (formData.discountType === "PERCENTAGE" && discountValue > 100) {
+    if (
+      formData.discountType === "PERCENTAGE" &&
+      submittedDiscountValue > 100
+    ) {
       setError("discountValue", {
         type: "validate",
         message: "Percentage discount cannot be greater than 100%.",
       });
-
       return;
     }
 
@@ -171,45 +248,6 @@ const InvoiceForm = ({
       });
     }
   };
-
-  const customers = relatedData?.customers ?? [];
-  const services = relatedData?.services ?? [];
-  const employees = relatedData?.employees ?? [];
-
-  const serviceOptions = services.map((s) => ({
-    value: s.id,
-    label: `${s.name}${!s.isActive ? " (inactive)" : ""}`,
-  }));
-  const employeeOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.name}${!e.isActive ? " (inactive)" : ""}`,
-  }));
-
-  // --- Live totals preview (display only — server recomputes authoritatively) ---
-  const watchedItems = watch("items");
-  const discountType = watch("discountType");
-  const discountValue = Number(watch("discountValue")) || 0;
-  const taxRate = Number(watch("taxRate")) || 0;
-  const watchedStatus = watch("status");
-
-  const serviceMap = new Map(services.map((s) => [s.id, s]));
-  const subtotal = watchedItems.reduce((sum, item) => {
-    const service = serviceMap.get(item.serviceId);
-    if (!service) return sum;
-    const qty = Number(item.quantity) || 0;
-    return sum + service.price * qty;
-  }, 0);
-  const discountTotal =
-    discountType === "PERCENTAGE"
-      ? (subtotal * discountValue) / 100
-      : discountValue;
-  const isDiscountInvalid =
-    discountType === "FIXED" ? discountValue > subtotal : discountValue > 100;
-  const taxable = Math.max(subtotal - discountTotal, 0);
-  const taxTotal = (taxable * taxRate) / 100;
-  const total = taxable + taxTotal;
-
-  const isEditingCancelled = type === "update" && watchedStatus === "CANCELLED";
 
   // --- Gate: fully paid invoices are read-only ---
   if (type === "update" && data?.status === "PAID") {
@@ -257,13 +295,12 @@ const InvoiceForm = ({
     );
     const previewItems = previewData.items.map((item) => {
       const service = serviceMap.get(item.serviceId);
-      // CHANGED: was a single employee lookup — now joins every assigned name.
       const staffNames = item.employeeIds
         .map((id) => employees.find((e) => e.id === id)?.name)
         .filter(Boolean)
         .join(", ");
       const qty = Number(item.quantity) || 0;
-      const unitPrice = service?.price ?? 0;
+      const unitPrice = getLineUnitPrice(item) ?? 0;
       return {
         serviceName: service?.name ?? "Unknown service",
         employeeName: staffNames || "Unassigned",
@@ -371,8 +408,6 @@ const InvoiceForm = ({
               (can&apos;t be changed after the invoice is created)
             </span>
           </div>
-          {/* Keeps customerId in the submitted form data even though the
-              field itself isn't editable in this view. */}
           <input type="hidden" {...register("customerId")} />
         </div>
       )}
@@ -384,7 +419,12 @@ const InvoiceForm = ({
           <button
             type="button"
             onClick={() =>
-              append({ serviceId: "", employeeIds: [], quantity: 1 })
+              append({
+                serviceId: "",
+                employeeIds: [],
+                quantity: 1,
+                customPrice: undefined,
+              })
             }
             className="text-xs font-medium text-[#7c6f2a] bg-[#FAE27C] hover:brightness-95 rounded-md px-2.5 py-1.5 cursor-pointer"
           >
@@ -396,94 +436,111 @@ const InvoiceForm = ({
           {fields.map((field, index) => {
             const selectedServiceId = watchedItems[index]?.serviceId;
             const lineService = serviceMap.get(selectedServiceId);
-            const lineTotal = lineService
-              ? lineService.price * (Number(watchedItems[index]?.quantity) || 0)
-              : 0;
+            const unitPrice = getLineUnitPrice(watchedItems[index] ?? {}) ?? 0;
+            const lineTotal =
+              unitPrice * (Number(watchedItems[index]?.quantity) || 0);
 
             return (
               <div
                 key={field.id}
-                className="flex flex-col md:flex-row md:items-start gap-3 rounded-lg ring-[1.5px] ring-gray-100 p-3"
+                className="flex flex-col gap-3 rounded-lg ring-[1.5px] ring-gray-100 p-3"
               >
-                <div className="flex-1 min-w-0">
-                  <Controller
-                    name={`items.${index}.serviceId` as const}
-                    control={control}
-                    render={({ field }) => (
-                      <CustomSelect
-                        label="Service"
-                        placeholder="Select a service…"
-                        options={serviceOptions}
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        error={errors.items?.[index]?.serviceId?.message}
-                      />
-                    )}
+                <div className="flex flex-col md:flex-row md:items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <Controller
+                      name={`items.${index}.serviceId` as const}
+                      control={control}
+                      render={({ field }) => (
+                        <ServiceCombobox
+                          services={services}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          error={errors.items?.[index]?.serviceId?.message}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <Controller
+                      name={`items.${index}.employeeIds` as const}
+                      control={control}
+                      render={({ field }) => (
+                        <EmployeeMultiSelect
+                          label="Staff"
+                          placeholder="Select staff…"
+                          options={employeeOptions}
+                          value={field.value ?? []}
+                          onChange={field.onChange}
+                          error={
+                            errors.items?.[index]?.employeeIds?.message as
+                              | string
+                              | undefined
+                          }
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <InputField
+                    label="Qty"
+                    type="number"
+                    name={`items.${index}.quantity`}
+                    register={register}
+                    error={errors.items?.[index]?.quantity}
+                    inputProps={{ min: 1 }}
                   />
-                </div>
 
-                {/* CHANGED: multi-select instead of a single-value CustomSelect */}
-                <div className="flex-1 min-w-0">
-                  <Controller
-                    name={`items.${index}.employeeIds` as const}
-                    control={control}
-                    render={({ field }) => (
-                      <EmployeeMultiSelect
-                        label="Staff"
-                        placeholder="Select staff…"
-                        options={employeeOptions}
-                        value={field.value ?? []}
-                        onChange={field.onChange}
-                        error={
-                          errors.items?.[index]?.employeeIds?.message as
-                            | string
-                            | undefined
-                        }
-                      />
-                    )}
-                  />
-                </div>
-
-                <InputField
-                  label="Qty"
-                  type="number"
-                  name={`items.${index}.quantity`}
-                  register={register}
-                  error={errors.items?.[index]?.quantity}
-                  inputProps={{ min: 1 }}
-                />
-
-                <div className="flex flex-col gap-1.5 md:pt-6 shrink-0">
-                  <span className="text-xs text-gray-500 whitespace-nowrap md:pt-[1px]">
-                    Rs. {lineTotal.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="flex md:pt-6 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => fields.length > 1 && remove(index)}
-                    disabled={fields.length === 1}
-                    className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                    title="Remove"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
+                  <div className="flex md:pt-6 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => fields.length > 1 && remove(index)}
+                      disabled={fields.length === 1}
+                      className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      title="Remove"
                     >
-                      <path d="M3 6h18" strokeLinecap="round" />
-                      <path d="M8 6V4h8v2" strokeLinecap="round" />
-                      <path
-                        d="M19 6l-1 14H6L5 6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M3 6h18" strokeLinecap="round" />
+                        <path d="M8 6V4h8v2" strokeLinecap="round" />
+                        <path
+                          d="M19 6l-1 14H6L5 6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 mt-1 border-t border-gray-100">
+                  {/* <div className="w-full ">
+                    <InputField
+                      label="Custom Price"
+                      type="number"
+                      name={`items.${index}.customPrice`}
+                      register={register}
+                      error={errors.items?.[index]?.customPrice}
+                      inputProps={{
+                        min: 0,
+                        step: "1",
+                        placeholder: "New price",
+                      }}
+                    />
+                  </div> */}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-gray-400">Line total</span>
+                    <span className="text-sm font-semibold text-gray-800 bg-gray-50 rounded-md px-3 py-1.5 min-w-[100px] text-right">
+                      Rs. {lineTotal.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -535,13 +592,13 @@ const InvoiceForm = ({
           <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
           <p className="text-xs text-red-500">
             {discountType === "FIXED"
-              ? `Discount cannot exceed Rs. ${subtotal.toFixed(2)}.`
+              ? `Discount cannot exceed Rs.  ${subtotal.toFixed(2)}.`
               : "Discount cannot exceed 100%."}
           </p>
         </div>
       )}
 
-      {/* Notes — InputField doesn't support textarea, so styled to match manually */}
+      {/* Notes */}
       <div className="flex flex-col gap-2 w-full">
         <label className="text-xs text-gray-500">Notes (optional)</label>
         <textarea

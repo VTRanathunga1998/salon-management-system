@@ -47,7 +47,7 @@ const DashboardPage = async () => {
       icon: <Banknote className="h-5 w-5" />,
       accent: "bg-green-500",
       description: "Payments collected today",
-      prefix: "Rs. ",
+      prefix: "Rs.  ",
     },
   ];
 

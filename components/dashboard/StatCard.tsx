@@ -6,7 +6,7 @@ type StatCardProps = {
   icon: ReactNode;
   accent: string; // tailwind bg-* class, e.g. "bg-violet-500"
   description: string;
-  prefix?: string; // e.g. "Rs. " for currency values
+  prefix?: string; // e.g. "Rs.  " for currency values
 };
 
 const StatCard = ({

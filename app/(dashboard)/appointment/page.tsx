@@ -9,6 +9,7 @@ import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { endOfDayInSalonTz, startOfDayInSalonTz } from "@/lib/timezone";
+import { env } from "process";
 
 type AppointmentList = Appointment & {
   customer: { id: string; name: string };
@@ -20,7 +21,7 @@ type AppointmentList = Appointment & {
   }[];
 };
 
-const SALON_TIME_ZONE = "Asia/Colombo";
+const SALON_TIME_ZONE = env.SALON_TIME_ZONE;
 
 const formatDate = (d: Date) =>
   new Intl.DateTimeFormat("en-GB", {

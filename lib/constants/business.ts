@@ -1,6 +1,6 @@
 export const BUSINESS_INFO = {
-  name: "Salon Unknown",
-  address: "123 Main Street, Negombo, Sri Lanka",
-  phone: "+94 77 123 4567",
-  email: "salonunknown@gmail.com",
+  name: "AVENUE LADIES SALON",
+  address: "38W9+252 Majan - Al Barari - Dubai - United Arab Emirates",
+  phone: "+971 56 599 4695",
+  email: "info@avenueladiessalon.ae",
 };

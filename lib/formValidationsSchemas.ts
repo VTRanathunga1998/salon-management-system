@@ -17,6 +17,12 @@ export const invoiceItemSchema = z.object({
     .int()
     .min(1, { message: "Quantity must be at least 1!" })
     .max(50, { message: "Quantity looks too high — check this!" }),
+
+  customPrice: z.preprocess(
+    (val) =>
+      val === "" || val === undefined || val === null ? undefined : Number(val),
+    z.number().min(0, "Price can't be negative").optional(),
+  ),
 });
 
 //Invoice Schema
