@@ -19,14 +19,19 @@ type AppointmentList = Appointment & {
   }[];
 };
 
+const SALON_TIME_ZONE = "Asia/Colombo";
+
 const formatDate = (d: Date) =>
   new Intl.DateTimeFormat("en-GB", {
+    timeZone: SALON_TIME_ZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
   }).format(d);
+
 const formatTime = (d: Date) =>
   new Intl.DateTimeFormat("en-GB", {
+    timeZone: SALON_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
