@@ -2,10 +2,16 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { Dispatch, SetStateAction, startTransition, useActionState, useEffect } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  startTransition,
+  useActionState,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { AppointmentStatus } from "@prisma/client";
-
 import {
   createAppointment,
   updateAppointment,
@@ -13,12 +19,15 @@ import {
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 import CustomerCombobox from "@/components/Customercombobox";
+import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { toast } from "react-toastify";
 import {
   AppointmentFormInput,
   appointmentSchema,
   AppointmentSchema,
 } from "@/lib/formValidationsSchemas";
+import { todayInSalonTz } from "@/lib/timezone";
+import { SALON_TIMEZONE } from "@/lib/timezone";
 
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];
@@ -31,10 +40,19 @@ const statusOptions = [
   { value: AppointmentStatus.CONFIRMED, label: "Confirmed" },
 ];
 
+// AFTER — converts the stored UTC instant back to Colombo wall-clock time
 const toDateInput = (d: string | Date) =>
-  new Date(d).toISOString().slice(0, 10);
+  new Intl.DateTimeFormat("en-CA", { timeZone: SALON_TIMEZONE }).format(
+    new Date(d),
+  );
+
 const toTimeInput = (d: string | Date) =>
-  new Date(d).toISOString().slice(11, 16);
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: SALON_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(d));
 
 const AppointmentForm = ({
   type,
@@ -51,6 +69,7 @@ const AppointmentForm = ({
     register,
     control,
     handleSubmit,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<AppointmentFormInput, any, AppointmentSchema>({
@@ -72,7 +91,7 @@ const AppointmentForm = ({
         }
       : {
           customerId: "",
-          date: new Date().toISOString().slice(0, 10),
+          date: todayInSalonTz(),
           startTime: "",
           endTime: "",
           status: AppointmentStatus.PENDING,
@@ -87,6 +106,15 @@ const AppointmentForm = ({
     name: "services",
   });
 
+  // Remembers the last non-cancelled status (PENDING or CONFIRMED) so
+  // unchecking "cancel" restores the right one instead of always
+  // resetting to PENDING.
+  const [preCancelStatus, setPreCancelStatus] = useState<AppointmentStatus>(
+    data?.status && data.status !== AppointmentStatus.CANCELLED
+      ? data.status
+      : AppointmentStatus.PENDING,
+  );
+
   const [state, formAction, pending] = useActionState(
     type === "create" ? createAppointment : updateAppointment,
     { success: false, error: false, message: "" },
@@ -100,7 +128,7 @@ const AppointmentForm = ({
       setOpen(false);
       router.refresh();
     } else if (state.error) {
-      console.error("[AppointmentForm]", state.message);
+      // console.error("[AppointmentForm]", state.message);
       toast.error(state.message || "Something went wrong. Please try again.");
     }
   }, [state, router, setOpen]);
@@ -125,8 +153,48 @@ const AppointmentForm = ({
   }));
 
   const watchedStatus = watch("status");
+  const watchedServices = watch("services");
   const isCancelling =
     type === "update" && watchedStatus === AppointmentStatus.CANCELLED;
+
+  // Cancelled appointments are locked entirely — read-only summary, no form.
+  if (type === "update" && data?.status === AppointmentStatus.CANCELLED) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Appointment Cancelled
+          </h2>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3.5 text-sm text-gray-600 flex flex-col gap-1.5">
+          <p>
+            <span className="text-gray-400">Customer:</span>{" "}
+            {data.customer?.name ?? "—"}
+          </p>
+          <p>
+            <span className="text-gray-400">Date:</span>{" "}
+            {toDateInput(data.date)}
+          </p>
+          <p>
+            <span className="text-gray-400">Time:</span>{" "}
+            {toTimeInput(data.startTime)} – {toTimeInput(data.endTime)}
+          </p>
+          {data.cancelReason && (
+            <p>
+              <span className="text-gray-400">Reason:</span> {data.cancelReason}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition cursor-pointer"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
@@ -157,6 +225,7 @@ const AppointmentForm = ({
           name="date"
           register={register}
           error={errors.date}
+          inputProps={{ min: todayInSalonTz() }}
         />
         <InputField
           label="Start time"
@@ -188,72 +257,90 @@ const AppointmentForm = ({
         </div>
 
         <div className="flex flex-col gap-3">
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className="flex flex-col md:flex-row md:items-start gap-3 rounded-lg ring-[1.5px] ring-gray-100 p-3"
-            >
-              <div className="flex-1 min-w-0">
-                <Controller
-                  name={`services.${index}.serviceId` as const}
-                  control={control}
-                  render={({ field }) => (
-                    <CustomSelect
-                      label="Service"
-                      placeholder="Select a service…"
-                      options={serviceOptions}
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      error={errors.services?.[index]?.serviceId?.message}
-                    />
-                  )}
-                />
-              </div>
+          {fields.map((field, index) => {
+            // Hide services already picked on OTHER rows so the same
+            // service can't be selected twice in one appointment — the
+            // zod refine catches it too, but preventing it in the UI is
+            // friendlier than letting the user hit the error first.
+            const usedElsewhere = new Set(
+              watchedServices
+                .filter((_, i) => i !== index)
+                .map((s) => s.serviceId)
+                .filter(Boolean),
+            );
+            const rowServiceOptions = serviceOptions.filter(
+              (opt) =>
+                opt.value === watchedServices[index]?.serviceId ||
+                !usedElsewhere.has(opt.value),
+            );
 
-              <div className="flex-1 min-w-0">
-                <Controller
-                  name={`services.${index}.employeeId` as const}
-                  control={control}
-                  render={({ field }) => (
-                    <CustomSelect
-                      label="Staff (optional)"
-                      placeholder="Assign later…"
-                      options={employeeOptions}
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
-              </div>
+            return (
+              <div
+                key={field.id}
+                className="flex flex-col md:flex-row md:items-start gap-3 rounded-lg ring-[1.5px] ring-gray-100 p-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <Controller
+                    name={`services.${index}.serviceId` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <CustomSelect
+                        label="Service"
+                        placeholder="Select a service…"
+                        options={rowServiceOptions}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        error={errors.services?.[index]?.serviceId?.message}
+                      />
+                    )}
+                  />
+                </div>
 
-              <div className="flex md:pt-6 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => fields.length > 1 && remove(index)}
-                  disabled={fields.length === 1}
-                  className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                  title="Remove"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
+                <div className="flex-1 min-w-0">
+                  <Controller
+                    name={`services.${index}.employeeId` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <CustomSelect
+                        label="Staff (optional)"
+                        placeholder="Assign later…"
+                        options={employeeOptions}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="flex md:pt-6 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => fields.length > 1 && remove(index)}
+                    disabled={fields.length === 1}
+                    className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    title="Remove"
                   >
-                    <path d="M3 6h18" strokeLinecap="round" />
-                    <path d="M8 6V4h8v2" strokeLinecap="round" />
-                    <path
-                      d="M19 6l-1 14H6L5 6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M3 6h18" strokeLinecap="round" />
+                      <path d="M8 6V4h8v2" strokeLinecap="round" />
+                      <path
+                        d="M19 6l-1 14H6L5 6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {errors.services?.message && (
           <p className="text-xs text-red-400">
@@ -263,62 +350,74 @@ const AppointmentForm = ({
       </div>
 
       {/* Status */}
-      <Controller
-        name="status"
-        control={control}
-        render={({ field }) =>
-          type === "create" ? (
-            <CustomSelect
-              label="Status"
-              options={statusOptions}
-              value={field.value ?? AppointmentStatus.PENDING}
-              onChange={field.onChange}
+      {type === "create" ? (
+        <CustomSelect
+          label="Status"
+          options={statusOptions}
+          value={watchedStatus ?? AppointmentStatus.PENDING}
+          onChange={(value) =>
+            setValue("status", value as AppointmentStatus, {
+              shouldValidate: true,
+            })
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5 rounded-lg bg-red-50 p-3">
+          <label className="flex items-center gap-2 text-xs font-medium text-red-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={watchedStatus === AppointmentStatus.CANCELLED}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setPreCancelStatus(
+                    watchedStatus &&
+                      watchedStatus !== AppointmentStatus.CANCELLED
+                      ? watchedStatus
+                      : preCancelStatus,
+                  );
+                  setValue("status", AppointmentStatus.CANCELLED, {
+                    shouldValidate: true,
+                  });
+                } else {
+                  setValue("status", preCancelStatus, { shouldValidate: true });
+                }
+              }}
             />
-          ) : (
-            <div className="flex flex-col gap-1.5 rounded-lg bg-red-50 p-3">
-              <label className="flex items-center gap-2 text-xs font-medium text-red-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={field.value === AppointmentStatus.CANCELLED}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.checked
-                        ? AppointmentStatus.CANCELLED
-                        : AppointmentStatus.PENDING,
-                    )
-                  }
-                />
-                Cancel this appointment
-              </label>
+            <input type="hidden" {...register("status")} />
+            Cancel this appointment
+          </label>
 
-              {!isCancelling && (
-                <div className="mt-1">
-                  <CustomSelect
-                    label="Status"
-                    options={statusOptions}
-                    value={field.value ?? AppointmentStatus.PENDING}
-                    onChange={field.onChange}
-                  />
-                </div>
-              )}
-
-              {isCancelling && (
-                <input
-                  type="text"
-                  placeholder="Reason for cancellation"
-                  {...register("cancelReason")}
-                  className="ring-[1.5px] ring-red-200 rounded-lg p-2 text-sm focus:outline-none mt-1"
-                />
-              )}
-              {errors.cancelReason && (
-                <p className="text-xs text-red-400">
-                  {errors.cancelReason.message}
-                </p>
-              )}
+          {!isCancelling && (
+            <div className="mt-1">
+              <CustomSelect
+                label="Status"
+                options={statusOptions}
+                value={watchedStatus ?? AppointmentStatus.PENDING}
+                onChange={(value) => {
+                  setValue("status", value as AppointmentStatus, {
+                    shouldValidate: true,
+                  });
+                  setPreCancelStatus(value as AppointmentStatus);
+                }}
+              />
             </div>
-          )
-        }
-      />
+          )}
+
+          {isCancelling && (
+            <input
+              type="text"
+              placeholder="Reason for cancellation"
+              {...register("cancelReason")}
+              className="ring-[1.5px] ring-red-200 rounded-lg p-2 text-sm focus:outline-none mt-1"
+            />
+          )}
+          {errors.cancelReason && (
+            <p className="text-xs text-red-400">
+              {errors.cancelReason.message}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 w-full">
         <label className="text-xs text-gray-500">Notes (optional)</label>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AppointmentStatus } from "@prisma/client";
+import { nowTimeInSalonTz, todayInSalonTz } from "./timezone";
 
 //Invoice Item Schema
 export const invoiceItemSchema = z.object({
@@ -171,7 +172,18 @@ export const serviceSchema = z.object({
 export type ServiceFormInput = z.input<typeof serviceSchema>;
 export type ServiceSchema = z.output<typeof serviceSchema>;
 
+// Merge this into your existing lib/formValidationsSchemas.ts, replacing
+// the current appointmentServiceSchema / appointmentSchema block.
+// Add this import near the top of that file:
+//   import { todayInSalonTz, nowTimeInSalonTz } from "@/lib/timezone";
+
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm, 24-hour
+const MAX_APPOINTMENT_MINUTES = 5 * 60; // 5 hours
+
+function minutesSinceMidnight(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
 
 export const appointmentServiceSchema = z.object({
   serviceId: z.string().min(1, "Service is required"),
@@ -192,10 +204,43 @@ export const appointmentSchema = z
     notes: z.string().optional(),
     cancelReason: z.string().optional(),
   })
+  // Not in the past — compared against the salon's timezone, not the
+  // server's, so this stays correct no matter where this code runs.
+  .refine(
+    (data) => {
+      const today = todayInSalonTz();
+      if (data.date < today) return false;
+      if (data.date === today) {
+        return data.startTime >= nowTimeInSalonTz();
+      }
+      return true;
+    },
+    { message: "Cannot book an appointment in the past", path: ["date"] },
+  )
   .refine((data) => data.startTime < data.endTime, {
     message: "End time must be after start time",
     path: ["endTime"],
   })
+  .refine(
+    (data) =>
+      minutesSinceMidnight(data.endTime) -
+        minutesSinceMidnight(data.startTime) <=
+      MAX_APPOINTMENT_MINUTES,
+    {
+      message: "An appointment can't be longer than 5 hours",
+      path: ["endTime"],
+    },
+  )
+  .refine(
+    (data) => {
+      const ids = data.services.map((s) => s.serviceId).filter(Boolean);
+      return new Set(ids).size === ids.length;
+    },
+    {
+      message: "The same service can't be added twice in one appointment",
+      path: ["services"],
+    },
+  )
   .refine(
     (data) =>
       data.status !== AppointmentStatus.CANCELLED ||
