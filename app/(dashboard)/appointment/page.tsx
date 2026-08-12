@@ -8,7 +8,7 @@ import AppointmentFilters from "@/components/appoinment/AppointmentFilters";
 import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { endOfDayInSalonTz, startOfDayInSalonTz } from "@/lib/timezone";
+import { endOfDayInSalonTz, startOfDayInSalonTz } from "@/lib/utils/timezone";
 import { env } from "process";
 
 type AppointmentList = Appointment & {

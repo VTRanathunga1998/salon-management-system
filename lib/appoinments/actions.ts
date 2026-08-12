@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
 import { appointmentSchema } from "../formValidationsSchemas";
-import { combineDateAndTime, startOfDayInSalonTz } from "@/lib/timezone";
+import { combineDateAndTime, startOfDayInSalonTz } from "@/lib/utils/timezone";
 
 type ActionState = {
   success: boolean;

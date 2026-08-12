@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import { BUSINESS_INFO } from "@/lib/constants/business";
+import { BUSINESS_INFO } from "@/lib/settings";
 import type { ExpenseReportData } from "@/lib/reports/expense";
 
 const styles = StyleSheet.create({

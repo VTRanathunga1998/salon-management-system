@@ -4,8 +4,8 @@ import React from "react";
 import nodemailer from "nodemailer";
 import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
-import InvoicePdfDocument from "@/lib/pdf/InvoicePdfDocument";
-import { BUSINESS_INFO } from "@/lib/constants/business";
+import InvoicePdfDocument from "@/lib/invoices/InvoicePdfDocument";
+import { BUSINESS_INFO } from "@/lib/settings";
 
 type Result = { success: boolean; message?: string };
 

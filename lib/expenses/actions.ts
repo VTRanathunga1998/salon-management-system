@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { expenseSchema } from "@/lib/formValidationsSchemas";
-import { startOfDayInSalonTz } from "../timezone";
+import { startOfDayInSalonTz } from "../utils/timezone";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 

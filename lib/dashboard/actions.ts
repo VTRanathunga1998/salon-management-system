@@ -4,7 +4,7 @@ import {
   InvoiceStatus,
   PaymentStatus,
 } from "@prisma/client";
-import { getTodayRangeInSalonTz } from "../timezone";
+import { getTodayRangeInSalonTz } from "../utils/timezone";
 
 export async function getDashboardStats() {
   const { start, end } = getTodayRangeInSalonTz();

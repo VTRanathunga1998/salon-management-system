@@ -1,4 +1,4 @@
-import { BUSINESS_INFO } from "@/lib/constants/business";
+import { BUSINESS_INFO } from "@/lib/settings";
 
 export interface InvoicePreviewItem {
   serviceName: string;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AppointmentStatus } from "@prisma/client";
-import { nowTimeInSalonTz, todayInSalonTz } from "./timezone";
+import { nowTimeInSalonTz, todayInSalonTz } from "./utils/timezone";
 import { ExpenseCategory, PaymentMethod } from "@prisma/client";
 
 //Invoice Item Schema

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import React from "react";
 import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
-import InvoicePdfDocument from "@/lib/pdf/InvoicePdfDocument";
+import InvoicePdfDocument from "@/lib/invoices/InvoicePdfDocument";
 
 export async function GET(
   _req: NextRequest,

@@ -26,8 +26,8 @@ import {
   appointmentSchema,
   AppointmentSchema,
 } from "@/lib/formValidationsSchemas";
-import { todayInSalonTz } from "@/lib/timezone";
-import { SALON_TIMEZONE } from "@/lib/timezone";
+import { todayInSalonTz } from "@/lib/utils/timezone";
+import { SALON_TIMEZONE } from "@/lib/utils/timezone";
 
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];

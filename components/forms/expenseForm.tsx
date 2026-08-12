@@ -19,7 +19,7 @@ import {
 import { createExpense, updateExpense } from "@/lib/expenses/actions";
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
-import { toDateInputInSalonTz, todayInSalonTz } from "@/lib/timezone";
+import { toDateInputInSalonTz, todayInSalonTz } from "@/lib/utils/timezone";
 
 const categoryOptions = [
   { value: "RENT", label: "Rent" },
