@@ -16,11 +16,13 @@ import {
 import ReportFilterBar from "./ReportFilterBar";
 import ExpenseCategoryFilter from "./ExpenseCategoryFilter";
 import type { ExpenseReportData } from "@/lib/reports/expense";
+import {
+  formatDateInSalonTz,
+  toDateInputInSalonTz,
+} from "@/lib/utils/timezone";
 
 const money = (n: number) =>
   `Rs. ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const toInputDate = (d: Date) => d.toISOString().slice(0, 10);
 
 const CATEGORY_COLORS: Record<string, string> = {
   RENT: "#93c5fd",
@@ -55,7 +57,7 @@ const ExpenseReportDashboard = ({
     range,
   } = report;
 
-  const pdfUrl = `/api/reports/expense/pdf?from=${toInputDate(from)}&to=${toInputDate(to)}${
+  const pdfUrl = `/api/reports/expense/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}${
     selectedCategory !== "ALL" ? `&category=${selectedCategory}` : ""
   }`;
 
@@ -197,7 +199,7 @@ const ExpenseReportDashboard = ({
               {expenses.map((e) => (
                 <tr key={e.id} className="border-b border-gray-50">
                   <td className="py-2 text-gray-500 whitespace-nowrap">
-                    {new Date(e.date).toLocaleDateString()}
+                    {formatDateInSalonTz(e.date)}
                   </td>
                   <td className="py-2">{e.title}</td>
                   <td className="py-2 hidden md:table-cell text-gray-500">

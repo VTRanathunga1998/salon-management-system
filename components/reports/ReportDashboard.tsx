@@ -12,11 +12,13 @@ import {
 } from "recharts";
 import ReportFilterBar from "./ReportFilterBar";
 import type { ReportData } from "@/lib/reports/actions";
+import {
+  formatDateInSalonTz,
+  toDateInputInSalonTz,
+} from "@/lib/utils/timezone";
 
 const money = (n: number) =>
   `Rs. ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const toInputDate = (d: Date) => d.toISOString().slice(0, 10);
 
 const ReportDashboard = ({
   report,
@@ -38,7 +40,7 @@ const ReportDashboard = ({
     range,
   } = report;
 
-  const pdfUrl = `/api/reports/pdf?from=${toInputDate(from)}&to=${toInputDate(to)}`;
+  const pdfUrl = `/api/reports/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}`;
 
   // Client-side filter over the already-fetched log — no extra server
   // round-trip needed since the whole range's data is already in memory.
@@ -182,7 +184,7 @@ const ReportDashboard = ({
         </div>
       </div>
 
-      {/* NEW: itemized "who did what, when" log */}
+      {/* Itemized "who did what, when" log */}
       <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
           <h2 className="text-sm font-semibold text-gray-700">
@@ -221,7 +223,7 @@ const ReportDashboard = ({
               {filteredLog.map((row, i) => (
                 <tr key={i} className="border-b border-gray-50">
                   <td className="py-2 text-gray-500 whitespace-nowrap">
-                    {new Date(row.date).toLocaleDateString()}
+                    {formatDateInSalonTz(row.date)}
                   </td>
                   <td className="py-2">{row.employeeName}</td>
                   <td className="py-2">{row.serviceName}</td>

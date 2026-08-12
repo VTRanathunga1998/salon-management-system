@@ -12,11 +12,13 @@ import {
 import ReportFilterBar from "./ReportFilterBar";
 import EmployeeReportFilter from "./EmployeeReportFilter";
 import type { EmployeeReportData } from "@/lib/reports/employee";
+import {
+  formatDateInSalonTz,
+  toDateInputInSalonTz,
+} from "@/lib/utils/timezone";
 
 const money = (n: number) =>
   `Rs. ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const toInputDate = (d: Date) => d.toISOString().slice(0, 10);
 
 const EmployeeReportDashboard = ({
   report,
@@ -33,7 +35,7 @@ const EmployeeReportDashboard = ({
 }) => {
   const { summary, employeeStats, revenueSeries, log, range } = report;
 
-  const pdfUrl = `/api/reports/employee/pdf?from=${toInputDate(from)}&to=${toInputDate(to)}${
+  const pdfUrl = `/api/reports/employee/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}${
     selectedEmployeeId !== "all" ? `&employeeId=${selectedEmployeeId}` : ""
   }`;
 
@@ -161,7 +163,7 @@ const EmployeeReportDashboard = ({
               {log.map((row, i) => (
                 <tr key={i} className="border-b border-gray-50">
                   <td className="py-2 text-gray-500 whitespace-nowrap">
-                    {new Date(row.date).toLocaleDateString()}
+                    {formatDateInSalonTz(row.date)}
                   </td>
                   {selectedEmployeeId === "all" && (
                     <td className="py-2">{row.employeeName}</td>

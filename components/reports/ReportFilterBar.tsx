@@ -2,8 +2,11 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
-
-const toInputDate = (d: Date) => d.toISOString().slice(0, 10);
+import {
+  todayInSalonTz,
+  toDateInputInSalonTz,
+  startOfDayInSalonTz,
+} from "@/lib/utils/timezone";
 
 const presets = [
   "Today",
@@ -13,13 +16,23 @@ const presets = [
   "This year",
 ];
 
+// Shifts a "yyyy-mm-dd" date by N days (can be negative), staying anchored
+// to the salon's timezone throughout — avoids the raw UTC-slice bug where
+// `.toISOString().slice(0, 10)` can land on the wrong calendar day
+// depending on time-of-day and server region.
+function addDaysToSalonDate(dateStr: string, days: number): string {
+  const base = startOfDayInSalonTz(dateStr);
+  const shifted = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  return toDateInputInSalonTz(shifted);
+}
+
 const ReportFilterBar = ({ from, to }: { from: Date; to: Date }) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [localFrom, setLocalFrom] = useState(toInputDate(from));
-  const [localTo, setLocalTo] = useState(toInputDate(to));
+  const [localFrom, setLocalFrom] = useState(toDateInputInSalonTz(from));
+  const [localTo, setLocalTo] = useState(toDateInputInSalonTz(to));
 
   const applyRange = (fromStr: string, toStr: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -29,32 +42,30 @@ const ReportFilterBar = ({ from, to }: { from: Date; to: Date }) => {
   };
 
   const applyPreset = (label: string) => {
-    const now = new Date();
-    let f: Date;
-    const t = now;
+    const today = todayInSalonTz();
+    let fromStr: string;
+    const toStr = today;
 
     switch (label) {
       case "Today":
-        f = now;
+        fromStr = today;
         break;
       case "Last 7 days":
-        f = new Date(now.getTime() - 6 * 86_400_000);
+        fromStr = addDaysToSalonDate(today, -6);
         break;
       case "Last 30 days":
-        f = new Date(now.getTime() - 29 * 86_400_000);
+        fromStr = addDaysToSalonDate(today, -29);
         break;
       case "This month":
-        f = new Date(now.getFullYear(), now.getMonth(), 1);
+        fromStr = `${today.slice(0, 7)}-01`;
         break;
       case "This year":
-        f = new Date(now.getFullYear(), 0, 1);
+        fromStr = `${today.slice(0, 4)}-01-01`;
         break;
       default:
-        f = now;
+        fromStr = today;
     }
 
-    const fromStr = toInputDate(f);
-    const toStr = toInputDate(t);
     setLocalFrom(fromStr);
     setLocalTo(toStr);
     applyRange(fromStr, toStr);
