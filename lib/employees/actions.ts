@@ -181,7 +181,7 @@ export async function deleteEmployee(
 }
 
 // Restore Employee (optional)
-export async function restoreEmployee(id: string) {
+async function restoreEmployee(id: string) {
   try {
     await prisma.employee.update({
       where: {
@@ -216,7 +216,7 @@ export async function getEmployees() {
 }
 
 // Get Single Employee
-export async function getEmployee(id: string) {
+ async function getEmployee(id: string) {
   return prisma.employee.findUnique({
     where: {
       id,

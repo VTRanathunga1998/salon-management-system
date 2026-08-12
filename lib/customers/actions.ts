@@ -324,7 +324,7 @@ export async function deleteCustomer(
   }
 }
 
-export async function getCustomers() {
+async function getCustomers() {
   return await prisma.customer.findMany({
     orderBy: {
       name: "asc",
@@ -332,7 +332,7 @@ export async function getCustomers() {
   });
 }
 
-export async function getCustomerById(id: string) {
+async function getCustomerById(id: string) {
   return await prisma.customer.findUnique({
     where: {
       id,

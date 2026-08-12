@@ -18,8 +18,6 @@ interface ServiceComboboxProps {
   placeholder?: string;
 }
 
-const money = (n: number) => `Rs.  ${n.toFixed(2)}`;
-
 const ServiceCombobox = ({
   label = "Service",
   services,
