@@ -7,6 +7,7 @@ import TableSearch from "@/components/TableSearch";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { serializeData } from "@/lib/utils/serialize";
+import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type ExpenseList = Expense;
 
@@ -57,7 +58,7 @@ const ExpenseListPage = async ({
       </td>
       <td className="py-2">Rs. {Number(item.amount).toFixed(2)}</td>
       <td className="py-2 hidden md:table-cell">{formatLabel(item.method)}</td>
-      <td className="py-2">{new Date(item.date).toLocaleDateString()}</td>
+      <td className="py-2">{formatDateInSalonTz(item.date)}</td>
       <td className="py-2">
         <div className="flex flex-col md:flex-row items-center gap-2 py-2">
           <FormContainer table="expense" type="update" data={item} />
