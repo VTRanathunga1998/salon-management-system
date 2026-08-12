@@ -19,7 +19,6 @@ import {
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 import CustomerCombobox from "@/components/Customercombobox";
-import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { toast } from "react-toastify";
 import {
   AppointmentFormInput,
@@ -31,7 +30,7 @@ import {
   todayInSalonTz,
   toTimeInputInSalonTz,
 } from "@/lib/utils/timezone";
-import { SALON_TIMEZONE } from "@/lib/utils/timezone";
+import AppointmentServiceCombobox from "../Appointmentservicecombobox";
 
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];
@@ -118,7 +117,6 @@ const AppointmentForm = ({
       setOpen(false);
       router.refresh();
     } else if (state.error) {
-      // console.error("[AppointmentForm]", state.message);
       toast.error(state.message || "Something went wrong. Please try again.");
     }
   }, [state, router, setOpen]);
@@ -133,10 +131,6 @@ const AppointmentForm = ({
   const services = relatedData?.services ?? [];
   const employees = relatedData?.employees ?? [];
 
-  const serviceOptions = services.map((s) => ({
-    value: s.id,
-    label: `${s.name}${!s.isActive ? " (inactive)" : ""}`,
-  }));
   const employeeOptions = employees.map((e) => ({
     value: e.id,
     label: `${e.name}${!e.isActive ? " (inactive)" : ""}`,
@@ -249,21 +243,13 @@ const AppointmentForm = ({
 
         <div className="flex flex-col gap-3">
           {fields.map((field, index) => {
-            // Hide services already picked on OTHER rows so the same
-            // service can't be selected twice in one appointment — the
-            // zod refine catches it too, but preventing it in the UI is
-            // friendlier than letting the user hit the error first.
-            const usedElsewhere = new Set(
-              watchedServices
-                .filter((_, i) => i !== index)
-                .map((s) => s.serviceId)
-                .filter(Boolean),
-            );
-            const rowServiceOptions = serviceOptions.filter(
-              (opt) =>
-                opt.value === watchedServices[index]?.serviceId ||
-                !usedElsewhere.has(opt.value),
-            );
+            // Services already picked on OTHER rows are excluded from this
+            // row's search results — same-service-twice is prevented by
+            // construction rather than caught after the fact by zod.
+            const excludeIds = watchedServices
+              .filter((_, i) => i !== index)
+              .map((s) => s.serviceId)
+              .filter(Boolean);
 
             return (
               <div
@@ -275,12 +261,11 @@ const AppointmentForm = ({
                     name={`services.${index}.serviceId` as const}
                     control={control}
                     render={({ field }) => (
-                      <CustomSelect
-                        label="Service"
-                        placeholder="Select a service…"
-                        options={rowServiceOptions}
+                      <AppointmentServiceCombobox
+                        services={services}
                         value={field.value ?? ""}
                         onChange={field.onChange}
+                        excludeIds={excludeIds}
                         error={errors.services?.[index]?.serviceId?.message}
                       />
                     )}
