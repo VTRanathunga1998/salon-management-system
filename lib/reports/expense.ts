@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ExpenseCategory } from "@prisma/client";
+import { toDateInputInSalonTz, toMonthInSalonTz } from "@/lib/utils/timezone";
 
 export interface ExpenseReportFilters {
   from: Date;
@@ -46,10 +47,13 @@ export async function getExpenseReportData({
     Math.ceil((to.getTime() - from.getTime()) / 86_400_000),
   );
   const granularity: "day" | "month" = rangeDays <= 31 ? "day" : "month";
+
+  // CHANGED: was `d.toISOString().slice(0, 10 / 0, 7)` — pure UTC, ignoring
+  // the salon's timezone entirely. Now buckets by the salon's calendar
+  // day/month, so an expense dated "15 Jan" in Dubai lands on the "15 Jan"
+  // bar, not "14 Jan" (which is what UTC slicing was silently doing).
   const bucketKey = (d: Date) =>
-    granularity === "day"
-      ? d.toISOString().slice(0, 10)
-      : d.toISOString().slice(0, 7);
+    granularity === "day" ? toDateInputInSalonTz(d) : toMonthInSalonTz(d);
 
   const seriesMap = new Map<string, number>();
   for (const e of expenses) {

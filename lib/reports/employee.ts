@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { toDateInputInSalonTz, toMonthInSalonTz } from "../utils/timezone";
 
 export interface EmployeeReportFilters {
   from: Date;
@@ -66,9 +67,7 @@ export async function getEmployeeReportData({
   );
   const granularity: "day" | "month" = rangeDays <= 31 ? "day" : "month";
   const bucketKey = (d: Date) =>
-    granularity === "day"
-      ? d.toISOString().slice(0, 10)
-      : d.toISOString().slice(0, 7);
+    granularity === "day" ? toDateInputInSalonTz(d) : toMonthInSalonTz(d);
 
   for (const inv of invoices) {
     for (const item of inv.items) {

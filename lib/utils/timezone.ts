@@ -40,8 +40,10 @@ export function nowTimeInSalonTz(): string {
 
 export function getTodayRangeInSalonTz() {
   const today = todayInSalonTz();
+
   const start = startOfDayInSalonTz(today);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const end = endOfDayInSalonTz(today);
+
   return { start, end };
 }
 
@@ -86,4 +88,19 @@ export function formatTimeInSalonTz(d: Date | string): string {
     hour12: false,
     timeZone: SALON_TIMEZONE,
   }).format(new Date(d));
+}
+
+/** Formats a stored UTC instant back to "yyyy-mm" in the salon's timezone —
+ *  used for monthly bucketing in reports/charts. Uses formatToParts rather
+ *  than trusting a locale's default punctuation, so the output shape is
+ *  guaranteed regardless of ICU/locale quirks. */
+export function toMonthInSalonTz(d: Date | string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: SALON_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date(d));
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  return `${year}-${month}`;
 }
