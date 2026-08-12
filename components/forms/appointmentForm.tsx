@@ -26,7 +26,11 @@ import {
   appointmentSchema,
   AppointmentSchema,
 } from "@/lib/formValidationsSchemas";
-import { todayInSalonTz } from "@/lib/utils/timezone";
+import {
+  toDateInputInSalonTz,
+  todayInSalonTz,
+  toTimeInputInSalonTz,
+} from "@/lib/utils/timezone";
 import { SALON_TIMEZONE } from "@/lib/utils/timezone";
 
 type RelatedData = {
@@ -39,20 +43,6 @@ const statusOptions = [
   { value: AppointmentStatus.PENDING, label: "Pending" },
   { value: AppointmentStatus.CONFIRMED, label: "Confirmed" },
 ];
-
-// AFTER — converts the stored UTC instant back to Colombo wall-clock time
-const toDateInput = (d: string | Date) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: SALON_TIMEZONE }).format(
-    new Date(d),
-  );
-
-const toTimeInput = (d: string | Date) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: SALON_TIMEZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(d));
 
 const AppointmentForm = ({
   type,
@@ -78,9 +68,9 @@ const AppointmentForm = ({
       ? {
           id: data.id,
           customerId: data.customerId ?? data.customer?.id,
-          date: toDateInput(data.date),
-          startTime: toTimeInput(data.startTime),
-          endTime: toTimeInput(data.endTime),
+          date: toDateInputInSalonTz(data.date),
+          startTime: toTimeInputInSalonTz(data.startTime),
+          endTime: toTimeInputInSalonTz(data.endTime),
           status: data.status,
           services: data.services?.map((s: any) => ({
             serviceId: s.serviceId,
@@ -173,11 +163,12 @@ const AppointmentForm = ({
           </p>
           <p>
             <span className="text-gray-400">Date:</span>{" "}
-            {toDateInput(data.date)}
+            {toDateInputInSalonTz(data.date)}
           </p>
           <p>
             <span className="text-gray-400">Time:</span>{" "}
-            {toTimeInput(data.startTime)} – {toTimeInput(data.endTime)}
+            {toTimeInputInSalonTz(data.startTime)} –{" "}
+            {toTimeInputInSalonTz(data.endTime)}
           </p>
           {data.cancelReason && (
             <p>
