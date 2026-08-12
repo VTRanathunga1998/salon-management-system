@@ -41,12 +41,9 @@ export function nowTimeInSalonTz(): string {
 export function getTodayRangeInSalonTz() {
   const today = todayInSalonTz();
   const start = startOfDayInSalonTz(today);
-
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-
   return { start, end };
 }
-
 
 /** Formats a stored UTC instant back to "yyyy-mm-dd" for a date input,
  *  in the salon's timezone (not the browser's or server's local timezone). */
@@ -64,5 +61,29 @@ export function toTimeInputInSalonTz(d: string | Date): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+  }).format(new Date(d));
+}
+
+/** Formats a stored UTC instant as "DD Mon YYYY" in the salon's timezone —
+ *  use this anywhere a date is DISPLAYED (tables, lists, etc). Never
+ *  format a raw Date without an explicit timeZone, or it silently uses
+ *  whatever zone the server/runtime happens to default to. */
+export function formatDateInSalonTz(d: Date | string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: SALON_TIMEZONE,
+  }).format(new Date(d));
+}
+
+/** Formats a stored UTC instant as "HH:mm" (24-hour) in the salon's
+ *  timezone — use this anywhere a time is DISPLAYED. */
+export function formatTimeInSalonTz(d: Date | string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: SALON_TIMEZONE,
   }).format(new Date(d));
 }

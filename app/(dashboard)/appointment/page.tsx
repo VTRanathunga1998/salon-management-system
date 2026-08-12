@@ -8,8 +8,12 @@ import AppointmentFilters from "@/components/appoinment/AppointmentFilters";
 import AppointmentStatusBadge from "@/components/AppointmentStatusBadge";
 import { prisma } from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { endOfDayInSalonTz, startOfDayInSalonTz } from "@/lib/utils/timezone";
-import { env } from "process";
+import {
+  endOfDayInSalonTz,
+  startOfDayInSalonTz,
+  formatDateInSalonTz,
+  formatTimeInSalonTz,
+} from "@/lib/utils/timezone";
 
 type AppointmentList = Appointment & {
   customer: { id: string; name: string };
@@ -20,24 +24,6 @@ type AppointmentList = Appointment & {
     serviceNameSnapshot: string;
   }[];
 };
-
-const SALON_TIME_ZONE = env.SALON_TIME_ZONE;
-
-const formatDate = (d: Date) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: SALON_TIME_ZONE,
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-
-const formatTime = (d: Date) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone: SALON_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(d);
 
 const AppointmentListPage = async ({
   searchParams,
@@ -78,9 +64,9 @@ const AppointmentListPage = async ({
       <td className="py-2 hidden md:table-cell">
         {item.services.map((s) => s.serviceNameSnapshot).join(", ")}
       </td>
-      <td className="py-2">{formatDate(item.date)}</td>
-      <td className="py-2">{formatTime(item.startTime)}</td>
-      <td className="py-2">{formatTime(item.endTime)}</td>
+      <td className="py-2">{formatDateInSalonTz(item.date)}</td>
+      <td className="py-2">{formatTimeInSalonTz(item.startTime)}</td>
+      <td className="py-2">{formatTimeInSalonTz(item.endTime)}</td>
       <td className="py-2">
         <AppointmentStatusBadge status={item.status} />
       </td>
