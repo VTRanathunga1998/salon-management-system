@@ -1,27 +1,36 @@
 "use server";
 
 import React from "react";
-import nodemailer from "nodemailer";
 import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
 import InvoicePdfDocument from "@/lib/invoices/InvoicePdfDocument";
+import { resend } from "@/lib/email/resend";
+import { invoiceEmailTemplate } from "@/lib/email/templates/invoice-email";
 import { BUSINESS_INFO } from "@/lib/settings";
 
-type Result = { success: boolean; message?: string };
+type Result = {
+  success: boolean;
+  message?: string;
+};
 
-// Requires these env vars to be set (SMTP example — swap for Resend/SendGrid if you prefer):
-// SMTP_HOST, SMTP_PORT, SMTP_SECURE ("true"/"false"), SMTP_USER, SMTP_PASS, SMTP_FROM
 export async function sendInvoiceEmail(
   invoiceId: string,
   toEmail: string,
 ): Promise<Result> {
   const email = toEmail?.trim();
-  if (!email) return { success: false, message: "Email address is required." };
+
+  if (!email) {
+    return {
+      success: false,
+      message: "Email address is required.",
+    };
+  }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
       customer: true,
+
       items: {
         include: {
           employees: {
@@ -31,50 +40,99 @@ export async function sendInvoiceEmail(
           },
         },
       },
-      payments: { where: { status: "COMPLETED" } },
+
+      payments: {
+        where: {
+          status: "COMPLETED",
+        },
+      },
     },
   });
-  if (!invoice) return { success: false, message: "Invoice not found." };
+
+  if (!invoice) {
+    return {
+      success: false,
+      message: "Invoice not found.",
+    };
+  }
 
   try {
+    /*
+     * Generate invoice PDF
+     */
     const pdfBuffer = await renderToBuffer(
       React.createElement(InvoicePdfDocument, {
         invoice: {
           ...invoice,
+
           subtotal: Number(invoice.subtotal),
           discountTotal: Number(invoice.discountTotal),
           taxTotal: Number(invoice.taxTotal),
           total: Number(invoice.total),
+
           items: invoice.items.map((item) => ({
             ...item,
             unitPrice: Number(item.unitPrice),
             subtotal: Number(item.subtotal),
           })),
-          payments: invoice.payments.map((p) => ({ amount: Number(p.amount) })),
+
+          payments: invoice.payments.map((payment) => ({
+            amount: Number(payment.amount),
+          })),
         },
       }) as React.ReactElement<DocumentProps>,
     );
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    /*
+     * Generate HTML email
+     */
+    const html = invoiceEmailTemplate({
+      customerName: invoice.customer.name,
+      invoiceNumber: invoice.invoiceNumber,
+      total: Number(invoice.total),
     });
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
-      to: email,
-      subject: `Invoice ${invoice.invoiceNumber} from ${BUSINESS_INFO.name}`,
-      text: `Hi ${invoice.customer.name},\n\nPlease find attached your invoice ${invoice.invoiceNumber} for AED ${Number(invoice.total).toFixed(2)}.\n\nThank you for visiting us!\n\n${BUSINESS_INFO.name}`,
+    /*
+     * Send through Resend
+     */
+    const { error } = await resend.emails.send({
+      from:
+        process.env.RESEND_FROM ??
+        `AVENUE LADIES SALON <onboarding@resend.dev>`,
+
+      to: [email],
+
+      subject: `Invoice ${invoice.invoiceNumber} — ${BUSINESS_INFO.name}`,
+
+      html,
+
       attachments: [
-        { filename: `${invoice.invoiceNumber}.pdf`, content: pdfBuffer },
+        {
+          filename: `${invoice.invoiceNumber}.pdf`,
+          content: pdfBuffer,
+        },
       ],
     });
 
-    return { success: true, message: "Invoice emailed successfully." };
-  } catch (err) {
-    console.warn(err);
-    return { success: false, message: "Failed to send email." };
+    if (error) {
+      console.error("[Resend API Error]:", error);
+
+      return {
+        success: false,
+        message: error.message || "Failed to send email.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Invoice emailed successfully.",
+    };
+  } catch (error) {
+    console.error("[sendInvoiceEmail]", error);
+
+    return {
+      success: false,
+      message: "Failed to send invoice email.",
+    };
   }
 }
