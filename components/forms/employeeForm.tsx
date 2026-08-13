@@ -244,7 +244,6 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
           disabled={pending}
           className="flex-1 py-2.5 rounded-lg bg-[#C3EBFA] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 transition cursor-pointer"
         >
-          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
           {pending
             ? "Saving..."
             : type === "create"
