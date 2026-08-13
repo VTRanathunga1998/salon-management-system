@@ -15,6 +15,7 @@ export async function getDashboardStats() {
     todaysInvoices,
     todaysAppointments,
     todaysPayments,
+    todaysExpenses,
     recentInvoicesRaw,
   ] = await Promise.all([
     // Active services
@@ -70,6 +71,19 @@ export async function getDashboardStats() {
       },
     }),
 
+    // Expenses recorded today
+    prisma.expense.aggregate({
+      where: {
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+
     // Recent invoices
     prisma.invoice.findMany({
       take: 6,
@@ -94,6 +108,9 @@ export async function getDashboardStats() {
   // Revenue actually received today
   const todaysRevenue = Number(todaysPayments._sum.amount ?? 0);
 
+  // Expenses recorded today
+  const todaysExpense = Number(todaysExpenses._sum.amount ?? 0);
+
   const recentInvoices = recentInvoicesRaw.map((invoice) => ({
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
@@ -109,6 +126,7 @@ export async function getDashboardStats() {
     todaysCustomers,
     todaysAppointments,
     todaysRevenue,
+    todaysExpense,
     recentInvoices,
   };
 }

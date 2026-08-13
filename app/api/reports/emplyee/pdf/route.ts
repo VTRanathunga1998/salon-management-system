@@ -4,6 +4,20 @@ import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
 import { getEmployeeReportData } from "@/lib/reports/employee";
 import EmployeeReportPdfDocument from "@/lib/reports/EmployeeReportPdfDocument";
+import {
+  startOfDayInSalonTz,
+  endOfDayInSalonTz,
+  todayInSalonTz,
+} from "@/lib/utils/timezone";
+
+function isValidDateString(value: string | null): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function firstDayOfCurrentMonthInSalonTz(): string {
+  const [year, month] = todayInSalonTz().split("-");
+  return `${year}-${month}-01`;
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,12 +25,15 @@ export async function GET(req: NextRequest) {
   const toParam = searchParams.get("to");
   const employeeId = searchParams.get("employeeId") ?? undefined;
 
-  const now = new Date();
-  const from = fromParam
-    ? new Date(fromParam)
-    : new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = toParam ? new Date(toParam) : now;
-  to.setHours(23, 59, 59, 999);
+  // CHANGED: was `new Date(fromParam)` + `to.setHours(...)` — both operate
+  // in server-local time, not the salon's timezone. Now anchored explicitly.
+  const fromDate = isValidDateString(fromParam)
+    ? fromParam
+    : firstDayOfCurrentMonthInSalonTz();
+  const toDate = isValidDateString(toParam) ? toParam : todayInSalonTz();
+
+  const from = startOfDayInSalonTz(fromDate);
+  const to = endOfDayInSalonTz(toDate);
 
   const [report, employee] = await Promise.all([
     getEmployeeReportData({ from, to, employeeId }),
@@ -28,8 +45,10 @@ export async function GET(req: NextRequest) {
       : Promise.resolve(null),
   ]);
 
-  const fromLabel = from.toISOString().slice(0, 10);
-  const toLabel = to.toISOString().slice(0, 10);
+  // CHANGED: was `from.toISOString().slice(0, 10)` — pure UTC. The salon-
+  // local date strings we already validated above are correct as-is.
+  const fromLabel = fromDate;
+  const toLabel = toDate;
 
   const buffer = await renderToBuffer(
     React.createElement(EmployeeReportPdfDocument, {

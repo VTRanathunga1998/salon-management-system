@@ -4,6 +4,7 @@ import {
   UserCheck,
   CalendarCheck,
   Banknote,
+  Receipt,
 } from "lucide-react";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentInvoicesTable from "@/components/dashboard/RecentInvoicesTable";
@@ -47,7 +48,15 @@ const DashboardPage = async () => {
       icon: <Banknote className="h-5 w-5" />,
       accent: "bg-green-500",
       description: "Payments collected today",
-      prefix: "Rs.  ",
+      prefix: `AED `,
+    },
+    {
+      title: "Today's Expenses",
+      value: stats.todaysExpense,
+      icon: <Receipt className="h-5 w-5" />,
+      accent: "bg-red-500",
+      description: "Expenses recorded today",
+      prefix: "AED ",
     },
   ];
 

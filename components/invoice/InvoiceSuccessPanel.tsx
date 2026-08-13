@@ -9,7 +9,7 @@ import { sendInvoiceEmail } from "@/lib/email/sendInvoiceEmail";
 const InvoiceSuccessPanel = ({
   invoice,
   onDone,
-  heading = "Invoice Created 🎉",
+  heading = "Invoice Created",
   allowPayment = true,
 }: {
   invoice: any;
@@ -67,7 +67,7 @@ const InvoiceSuccessPanel = ({
     if (res.change && res.change > 0) {
       setLastChange(res.change);
       toast.success(
-        `Payment recorded. Change due: Rs. ${res.change.toFixed(2)}`,
+        `Payment recorded. Change due: AED ${res.change.toFixed(2)}`,
       );
     } else {
       toast.success("Payment recorded.");
@@ -151,7 +151,7 @@ const InvoiceSuccessPanel = ({
         balanceDue > 0 ? (
           <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4 flex flex-col gap-3">
             <p className="text-sm font-medium text-gray-700">
-              Record a payment — balance due: Rs. {balanceDue.toFixed(2)}
+              Record a payment — balance due: AED {balanceDue.toFixed(2)}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
@@ -185,8 +185,8 @@ const InvoiceSuccessPanel = ({
             </div>
             {Number(paymentAmount) > balanceDue && (
               <p className="text-xs text-blue-600">
-                Only Rs. {balanceDue.toFixed(2)} will be recorded as payment —
-                the rest (Rs. {(Number(paymentAmount) - balanceDue).toFixed(2)})
+                Only AED {balanceDue.toFixed(2)} will be recorded as payment —
+                the rest (AED {(Number(paymentAmount) - balanceDue).toFixed(2)})
                 is change to hand back, not revenue.
               </p>
             )}
@@ -195,7 +195,7 @@ const InvoiceSuccessPanel = ({
             )}
             {lastChange !== null && lastChange > 0 && (
               <div className="rounded-lg bg-amber-50 text-amber-700 text-sm p-3 font-medium">
-                💵 Change due to customer: Rs. {lastChange.toFixed(2)}
+                Change due to customer: AED {lastChange.toFixed(2)}
               </div>
             )}
           </div>

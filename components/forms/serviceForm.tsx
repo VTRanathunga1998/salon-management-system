@@ -165,7 +165,7 @@ const ServiceForm = ({
           inputProps={{ min: 5, step: 5 }}
         />
         <InputField
-          label="Price (Rs. )"
+          label="Price (AED)"
           type="number"
           name="price"
           register={register}

@@ -22,7 +22,7 @@ import {
 } from "@/lib/utils/timezone";
 
 const money = (n: number) =>
-  `Rs. ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `AED ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const CATEGORY_COLORS: Record<string, string> = {
   RENT: "#93c5fd",

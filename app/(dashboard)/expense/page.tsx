@@ -56,7 +56,7 @@ const ExpenseListPage = async ({
       <td className="py-2 hidden md:table-cell">
         {formatLabel(item.category)}
       </td>
-      <td className="py-2">Rs. {Number(item.amount).toFixed(2)}</td>
+      <td className="py-2">AED {Number(item.amount).toFixed(2)}</td>
       <td className="py-2 hidden md:table-cell">{formatLabel(item.method)}</td>
       <td className="py-2">{formatDateInSalonTz(item.date)}</td>
       <td className="py-2">

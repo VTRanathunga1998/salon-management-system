@@ -52,7 +52,7 @@ const RecentInvoicesTable = ({ invoices }: { invoices: RecentInvoice[] }) => {
                 </td>
                 <td className="py-3 text-slate-600">{invoice.customerName}</td>
                 <td className="py-3 text-slate-600">
-                  Rs. {invoice.total.toFixed(2)}
+                  AED {invoice.total.toFixed(2)}
                 </td>
                 <td className="py-3">
                   <StatusBadge status={invoice.status} />

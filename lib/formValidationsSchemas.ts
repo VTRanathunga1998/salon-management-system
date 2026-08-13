@@ -111,7 +111,7 @@ export const employeeSchema = z.object({
     .trim()
     .min(1, "Phone number is required")
     .regex(/^\d+$/, "Phone number can only contain digits")
-    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0712345678)"),
+    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0501234567)"),
 
   // Optional field — allow "" OR a valid, lowercased email.
   email: z
@@ -297,7 +297,7 @@ export const customerSchema = z.object({
     .trim()
     .min(1, "Phone number is required")
     .regex(/^\d+$/, "Phone number can only contain digits")
-    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0712345678)"),
+    .regex(/^0\d{9}$/, "Enter a valid 10-digit phone number (e.g. 0501234567)"),
 
   email: z
     .string()

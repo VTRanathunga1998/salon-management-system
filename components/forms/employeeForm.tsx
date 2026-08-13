@@ -173,7 +173,7 @@ const EmployeeForm = ({ type, data, setOpen }: Props) => {
           inputProps={{
             type: "tel",
             inputMode: "numeric",
-            placeholder: "Ex: 071XXXXXXX",
+            placeholder: "Ex: 05XXXXXXXX",
             maxLength: 10,
             autoComplete: "tel",
             onInput: (e: React.FormEvent<HTMLInputElement>) => {

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   emptyRow: { fontSize: 8, color: "#9ca3af", paddingVertical: 6 },
 });
 
-const money = (n: number) => `Rs. ${n.toFixed(2)}`;
+const money = (n: number) => `AED ${n.toFixed(2)}`;
 
 const ReportPdfDocument = ({
   report,

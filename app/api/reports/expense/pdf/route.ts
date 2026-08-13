@@ -4,6 +4,11 @@ import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
 import { ExpenseCategory } from "@prisma/client";
 import { getExpenseReportData } from "@/lib/reports/expense";
 import ExpenseReportPdfDocument from "@/lib/reports/ExpenseReportPdfDocument";
+import {
+  startOfDayInSalonTz,
+  endOfDayInSalonTz,
+  todayInSalonTz,
+} from "@/lib/utils/timezone";
 
 const labels: Record<string, string> = {
   RENT: "Rent",
@@ -15,18 +20,30 @@ const labels: Record<string, string> = {
   OTHER: "Other",
 };
 
+function isValidDateString(value: string | null): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function firstDayOfCurrentMonthInSalonTz(): string {
+  const [year, month] = todayInSalonTz().split("-");
+  return `${year}-${month}-01`;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
   const categoryParam = searchParams.get("category") ?? undefined;
 
-  const now = new Date();
-  const from = fromParam
-    ? new Date(fromParam)
-    : new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = toParam ? new Date(toParam) : now;
-  to.setHours(23, 59, 59, 999);
+  // CHANGED: was `new Date(fromParam)` + `to.setHours(...)` — server-local,
+  // not salon-local. Now anchored explicitly via timezone.ts.
+  const fromDate = isValidDateString(fromParam)
+    ? fromParam
+    : firstDayOfCurrentMonthInSalonTz();
+  const toDate = isValidDateString(toParam) ? toParam : todayInSalonTz();
+
+  const from = startOfDayInSalonTz(fromDate);
+  const to = endOfDayInSalonTz(toDate);
 
   const category = categoryParam
     ? (categoryParam as ExpenseCategory)
@@ -34,8 +51,9 @@ export async function GET(req: NextRequest) {
 
   const report = await getExpenseReportData({ from, to, category });
 
-  const fromLabel = from.toISOString().slice(0, 10);
-  const toLabel = to.toISOString().slice(0, 10);
+  // CHANGED: was `from.toISOString().slice(0, 10)` — pure UTC.
+  const fromLabel = fromDate;
+  const toLabel = toDate;
 
   const buffer = await renderToBuffer(
     React.createElement(ExpenseReportPdfDocument, {

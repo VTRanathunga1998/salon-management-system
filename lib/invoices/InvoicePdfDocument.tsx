@@ -60,7 +60,7 @@
 //   footer: { textAlign: "center", color: "#9ca3af", fontSize: 8, marginTop: 30 },
 // });
 
-// const money = (n: number) => `Rs. ${n.toFixed(2)}`;
+// const money = (n: number) => `AED${n.toFixed(2)}`;
 
 // interface InvoicePdfProps {
 //   invoice: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
 });
 
 const money = (value: number | string) =>
-  `Rs. ${Number(value).toLocaleString("en-LK", {
+  `AED ${Number(value).toLocaleString("en-LK", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

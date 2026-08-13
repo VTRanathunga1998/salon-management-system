@@ -43,7 +43,7 @@ const ServiceListPage = async ({
     >
       <td className="py-2">{item.name}</td>
       <td className="py-2 hidden md:table-cell">{item.description}</td>
-      <td className="py-2">Rs. {item.price.toFixed(2)}</td>
+      <td className="py-2">AED {item.price.toFixed(2)}</td>
       <td className="py-2">
         <div className="flex flex-col md:flex-row items-center gap-2 py-2">
           <FormContainer table="service" type="update" data={item} />

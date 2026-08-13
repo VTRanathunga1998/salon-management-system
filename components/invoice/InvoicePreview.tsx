@@ -1,4 +1,5 @@
 import { BUSINESS_INFO } from "@/lib/settings";
+import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 export interface InvoicePreviewItem {
   serviceName: string;
@@ -27,7 +28,7 @@ export interface InvoicePreviewProps {
   notes?: string | null;
 }
 
-const money = (n: number) => `Rs. ${n.toFixed(2)}`;
+const money = (n: number) => `AED ${n.toFixed(2)}`;
 
 const statusStyles: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-600 ring-gray-200",
@@ -59,16 +60,100 @@ const InvoicePreview = ({
       className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 overflow-hidden max-w-3xl mx-auto"
     >
       <style>{`
+        @page {
+          size: A4;
+          margin: 0;
+        }
+
         @media print {
-          body * { visibility: hidden; }
-          #invoice-print-area, #invoice-print-area * { visibility: visible; }
-          #invoice-print-area {
-            position: absolute; left: 0; top: 0; width: 100%;
-            box-shadow: none; ring: none; border-radius: 0;
+          html,
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            min-height: 100% !important;
+            background: white !important;
           }
-          .invoice-scroll-area {
-            max-height: none !important;
+
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide the rest of the application */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* Show invoice */
+          #invoice-print-area,
+          #invoice-print-area * {
+            visibility: visible !important;
+          }
+
+          #invoice-print-area {
+            position: relative !important;
+
+            width: 100% !important;
+            max-width: none !important;
+
+            margin: 0 !important;
+
+            /* Small actual invoice padding */
+            padding: 8mm !important;
+
+            box-sizing: border-box !important;
+
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+
             overflow: visible !important;
+          }
+
+          /* Remove screen padding */
+          #invoice-print-area .invoice-content {
+            padding: 0 !important;
+            margin: 0 !important;
+
+            width: 100% !important;
+            max-width: none !important;
+          }
+
+          /* Remove scrolling from table */
+          #invoice-print-area .invoice-scroll-area {
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Remove sticky table header */
+          #invoice-print-area .invoice-table-head {
+            position: static !important;
+          }
+
+          #invoice-print-area table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+
+          #invoice-print-area thead {
+            display: table-header-group !important;
+          }
+
+          #invoice-print-area tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          #invoice-print-area .invoice-section {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          .no-print {
+            display: none !important;
           }
         }
       `}</style>
@@ -76,9 +161,9 @@ const InvoicePreview = ({
       {/* Accent header band */}
       <div className="h-1.5 bg-gradient-to-r from-[#93c5fd] via-[#C3EBFA] to-[#CFCEFF]" />
 
-      <div className="p-6 md:p-8">
+      <div className="invoice-content p-6 md:p-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:justify-between gap-4 pb-6 border-b border-gray-100">
+        <div className="invoice-section flex flex-col md:flex-row md:justify-between gap-4 pb-6 border-b border-gray-100">
           <div>
             <h1 className="text-xl font-bold text-gray-800">
               {BUSINESS_INFO.name}
@@ -101,7 +186,7 @@ const InvoicePreview = ({
                 </span>
               )}
             </p>
-            <p className="text-xs text-gray-400">{date.toLocaleDateString()}</p>
+            <p className="text-xs text-gray-400">{formatDateInSalonTz(date)}</p>
             <span
               className={`inline-block mt-2 text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ${statusStyles[status] ?? statusStyles.DRAFT}`}
             >
@@ -111,7 +196,7 @@ const InvoicePreview = ({
         </div>
 
         {/* Bill to + quick balance snapshot */}
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-4 py-5">
+        <div className="invoice-section flex flex-col sm:flex-row sm:justify-between gap-4 py-5">
           <div>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
               Bill To
@@ -128,7 +213,7 @@ const InvoicePreview = ({
             )}
           </div>
 
-          {amountPaid > 0 && (
+          {/* {amountPaid > 0 && (
             <div
               className={`self-start sm:self-auto rounded-xl px-4 py-3 text-right ${
                 isSettled ? "bg-green-50" : "bg-blue-50"
@@ -143,14 +228,14 @@ const InvoicePreview = ({
                 {isSettled ? "Settled" : money(balanceDue)}
               </p>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Items table — scrolls on screen for long invoices, prints in full */}
         <div className="rounded-xl ring-1 ring-gray-100 overflow-hidden">
           <div className="invoice-scroll-area max-h-[420px] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50 z-10">
+              <thead className="invoice-table-head sticky top-0 bg-gray-50 z-10">
                 <tr className="text-[11px] text-gray-500 uppercase tracking-wide">
                   <th className="text-left font-semibold py-2.5 px-3">
                     Service
@@ -204,7 +289,7 @@ const InvoicePreview = ({
         </div>
 
         {/* Totals */}
-        <div className="flex justify-end pt-5">
+        <div className="invoice-section flex justify-end pt-5">
           <div className="w-full max-w-xs flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between text-gray-500">
               <span>Subtotal</span>
@@ -229,7 +314,7 @@ const InvoicePreview = ({
                   <span>{money(amountPaid)}</span>
                 </div>
                 <div
-                  className={`flex justify-between font-bold px-3 py-2 rounded-lg mt-1 ${
+                  className={`flex justify-between font-bold px-3 py-2 rounded-md mt-1 ${
                     isSettled
                       ? "bg-green-50 text-green-700"
                       : "bg-amber-50 text-amber-700"
@@ -244,7 +329,7 @@ const InvoicePreview = ({
         </div>
 
         {notes && (
-          <div className="mt-6 pt-4 border-t border-gray-100">
+          <div className="invoice-section mt-6 pt-4 border-t border-gray-100">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
               Notes
             </p>

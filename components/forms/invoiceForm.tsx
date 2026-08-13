@@ -34,7 +34,7 @@ type RelatedData = {
 };
 
 const discountTypeOptions = [
-  { value: "FIXED", label: "Rs.  (fixed)" },
+  { value: "FIXED", label: "AED (fixed)" },
   { value: "PERCENTAGE", label: "% (percentage)" },
 ];
 
@@ -212,7 +212,7 @@ const InvoiceForm = ({
     ) {
       setError("discountValue", {
         type: "validate",
-        message: `Discount cannot be greater than subtotal (Rs.  ${submittedSubtotal.toFixed(
+        message: `Discount cannot be greater than subtotal (AED ${submittedSubtotal.toFixed(
           2,
         )}).`,
       });
@@ -538,7 +538,7 @@ const InvoiceForm = ({
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-gray-400">Line total</span>
                     <span className="text-sm font-semibold text-gray-800 bg-gray-50 rounded-md px-3 py-1.5 min-w-[100px] text-right">
-                      Rs. {lineTotal.toFixed(2)}
+                      AED {lineTotal.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -592,7 +592,7 @@ const InvoiceForm = ({
           <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
           <p className="text-xs text-red-500">
             {discountType === "FIXED"
-              ? `Discount cannot exceed Rs.  ${subtotal.toFixed(2)}.`
+              ? `Discount cannot exceed AED ${subtotal.toFixed(2)}.`
               : "Discount cannot exceed 100%."}
           </p>
         </div>
@@ -645,19 +645,19 @@ const InvoiceForm = ({
       <div className="rounded-lg bg-gray-50 p-3.5 flex flex-col gap-1 text-sm">
         <div className="flex justify-between text-gray-500">
           <span>Subtotal</span>
-          <span>Rs. {subtotal.toFixed(2)}</span>
+          <span>AED {subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-gray-500">
           <span>Discount</span>
-          <span>- Rs. {discountTotal.toFixed(2)}</span>
+          <span>- AED {discountTotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-gray-500">
           <span>Tax</span>
-          <span>+ Rs. {taxTotal.toFixed(2)}</span>
+          <span>+ AED {taxTotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between font-semibold text-gray-800 pt-1.5 border-t border-gray-200 mt-1">
           <span>Total</span>
-          <span>Rs. {total.toFixed(2)}</span>
+          <span>AED {total.toFixed(2)}</span>
         </div>
         {data?.status === "PARTIALLY_PAID" && (
           <p className="text-xs text-gray-400 pt-1">

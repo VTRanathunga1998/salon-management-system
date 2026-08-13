@@ -390,7 +390,7 @@ const CustomerCombobox = ({
                   type="tel"
                   inputMode="numeric"
                   maxLength={10}
-                  placeholder="0712345678"
+                  placeholder="0501234567"
                   {...register("phone")}
                   onInput={(event) => {
                     event.currentTarget.value = stripNonDigits(

@@ -6,7 +6,7 @@ type StatCardProps = {
   icon: ReactNode;
   accent: string; // tailwind bg-* class, e.g. "bg-violet-500"
   description: string;
-  prefix?: string; // e.g. "Rs.  " for currency values
+  prefix?: string; // e.g. "AED " for currency values
 };
 
 const StatCard = ({
@@ -28,7 +28,7 @@ const StatCard = ({
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
             {title}
           </p>
-          <p className="mt-2 text-4xl font-black text-slate-800">
+          <p className="mt-2 text-3xl font-black text-slate-800">
             {prefix}
             {value.toLocaleString(
               undefined,

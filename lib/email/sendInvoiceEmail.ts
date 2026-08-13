@@ -66,7 +66,7 @@ export async function sendInvoiceEmail(
       from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
       to: email,
       subject: `Invoice ${invoice.invoiceNumber} from ${BUSINESS_INFO.name}`,
-      text: `Hi ${invoice.customer.name},\n\nPlease find attached your invoice ${invoice.invoiceNumber} for Rs. ${Number(invoice.total).toFixed(2)}.\n\nThank you for visiting us!\n\n${BUSINESS_INFO.name}`,
+      text: `Hi ${invoice.customer.name},\n\nPlease find attached your invoice ${invoice.invoiceNumber} for AED ${Number(invoice.total).toFixed(2)}.\n\nThank you for visiting us!\n\n${BUSINESS_INFO.name}`,
       attachments: [
         { filename: `${invoice.invoiceNumber}.pdf`, content: pdfBuffer },
       ],

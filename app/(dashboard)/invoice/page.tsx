@@ -82,7 +82,7 @@ const InvoicesListPage = async ({
     >
       <td className="py-2">{item.invoiceNumber}</td>
       <td className="py-2 hidden md:table-cell">{item.customer.name}</td>
-      <td className="py-2">Rs. {Number(item.total).toFixed(2)}</td>
+      <td className="py-2">AED {Number(item.total).toFixed(2)}</td>
       <td className="py-2">{item.status}</td>
       <td className="py-2">
         <div className="flex flex-col md:flex-row items-center gap-2 py-2">

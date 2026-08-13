@@ -6,7 +6,12 @@ const styles = StyleSheet.create({
   page: { padding: 36, fontSize: 9, fontFamily: "Helvetica", color: "#1f2937" },
   title: { fontSize: 16, fontWeight: 700, marginBottom: 2 },
   subtitle: { fontSize: 9, color: "#6b7280", marginBottom: 16 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, marginTop: 16, marginBottom: 6 },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginTop: 16,
+    marginBottom: 6,
+  },
   kpiRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
   kpiBox: {
     width: "31%",
@@ -39,7 +44,7 @@ const styles = StyleSheet.create({
   emptyRow: { fontSize: 8, color: "#9ca3af", paddingVertical: 6 },
 });
 
-const money = (n: number) => `Rs. ${n.toFixed(2)}`;
+const money = (n: number) => `AED ${n.toFixed(2)}`;
 
 const EmployeeReportPdfDocument = ({
   report,
@@ -58,7 +63,8 @@ const EmployeeReportPdfDocument = ({
     <Document>
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>
-          {BUSINESS_INFO.name} — Employee Report{employeeName ? `: ${employeeName}` : ""}
+          {BUSINESS_INFO.name} — Employee Report
+          {employeeName ? `: ${employeeName}` : ""}
         </Text>
         <Text style={styles.subtitle}>
           {from} to {to}
@@ -83,7 +89,9 @@ const EmployeeReportPdfDocument = ({
           <>
             <Text style={styles.sectionTitle}>By Employee</Text>
             <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, { width: "50%" }]}>Employee</Text>
+              <Text style={[styles.headerCell, { width: "50%" }]}>
+                Employee
+              </Text>
               <Text style={[styles.headerCell, styles.colNum]}>Services</Text>
               <Text style={[styles.headerCell, styles.colNum]}>Revenue</Text>
             </View>
