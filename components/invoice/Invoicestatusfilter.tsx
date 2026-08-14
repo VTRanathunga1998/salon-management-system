@@ -30,7 +30,7 @@ const InvoiceStatusFilter = () => {
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="hidden lg:flex flex-wrap gap-2">
       {statuses.map((s) => (
         <button
           key={s}

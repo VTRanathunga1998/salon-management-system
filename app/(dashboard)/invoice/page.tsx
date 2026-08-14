@@ -128,7 +128,7 @@ const InvoicesListPage = async ({
   return (
     <div className="flex-1 bg-white p-6 mt-0 space-y-4 md:p-4">
       {/* ── Top bar ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row sm:items-center sm:justify-between">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-800">

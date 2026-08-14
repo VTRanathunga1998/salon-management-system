@@ -220,7 +220,7 @@ const CustomerCombobox = ({
        */
       router.refresh();
     } catch (error) {
-      console.error("QUICK CUSTOMER ERROR:", error);
+      // console.error("QUICK CUSTOMER ERROR:", error);
 
       toast.error("Something went wrong while creating the customer.");
     }
