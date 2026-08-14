@@ -80,12 +80,12 @@ const InvoicesListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
-      <td className="py-2">{item.invoiceNumber}</td>
-      <td className="py-2 hidden md:table-cell">{item.customer.name}</td>
-      <td className="py-2">AED {Number(item.total).toFixed(2)}</td>
-      <td className="py-2">{item.status}</td>
-      <td className="py-2">
-        <div className="flex flex-col md:flex-row items-center gap-2 py-2">
+      <td className="px-2 md:px-0 py-2">{item.invoiceNumber}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">{item.customer.name}</td>
+      <td className="px-2 md:px-0 py-2">AED {Number(item.total).toFixed(2)}</td>
+      <td className="px-2 md:px-0 py-2">{item.status}</td>
+      <td className="px-2 md:px-0 py-2">
+        <div className="flex flex-row items-center gap-2 py-2">
           <FormContainer table="invoice" type="update" data={item} />
           <FormContainer table="invoice" type="delete" id={item.id} />
         </div>
@@ -138,7 +138,7 @@ const InvoicesListPage = async ({
 
         <InvoiceStatusFilter />
 
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+        <div className="flex items-center gap-4 self-end">
           <TableSearch />
 
           <div className="flex items-center gap-4 self-end">

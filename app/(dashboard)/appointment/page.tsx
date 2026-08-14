@@ -60,18 +60,20 @@ const AppointmentListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
-      <td className="py-2">{item.customer.name}</td>
-      <td className="py-2 hidden md:table-cell">
+      <td className="px-2 md:px-0 py-2">{item.customer.name}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">
         {item.services.map((s) => s.serviceNameSnapshot).join(", ")}
       </td>
-      <td className="py-2">{formatDateInSalonTz(item.date)}</td>
-      <td className="py-2">{formatTimeInSalonTz(item.startTime)}</td>
-      <td className="py-2">{formatTimeInSalonTz(item.endTime)}</td>
-      <td className="py-2">
+      <td className="px-2 md:px-0 py-2">{formatDateInSalonTz(item.date)}</td>
+      <td className="px-2 md:px-0 py-2">
+        {formatTimeInSalonTz(item.startTime)}
+      </td>
+      <td className="px-2 md:px-0 py-2">{formatTimeInSalonTz(item.endTime)}</td>
+      <td className="px-2 md:px-0 py-2">
         <AppointmentStatusBadge status={item.status} />
       </td>
-      <td className="py-2">
-        <div className="flex flex-col md:flex-row items-center gap-2 py-2">
+      <td className="px-2 md:px-0 py-2">
+        <div className="flex flex-row items-center gap-2 py-2">
           <FormContainer table="appointment" type="update" data={item} />
           <FormContainer table="appointment" type="delete" id={item.id} />
         </div>
@@ -146,8 +148,12 @@ const AppointmentListPage = async ({
           </div>
 
           <div className="flex items-center gap-4 self-end">
+          {/* <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto"> */}
             <TableSearch />
-            <FormContainer table="appointment" type="create" />
+
+            <div className="flex items-center gap-4 self-end">
+              <FormContainer table="appointment" type="create" />
+            </div>
           </div>
         </div>
 

@@ -47,7 +47,7 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
         Today
       </button>
 
-      <div className="flex items-center gap-2">
+      <div className="hidden md:flex items-center gap-2">
         <input
           type="date"
           value={from}
@@ -66,7 +66,7 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
       <select
         value={serviceId}
         onChange={(e) => updateParams({ serviceId: e.target.value || null })}
-        className="text-xs ring-[1.5px] ring-gray-200 rounded-md px-2 py-2 outline-none focus:ring-[#C3EBFA]"
+        className="hidden lg:block text-xs ring-[1.5px] ring-gray-200 rounded-md px-2 py-2 outline-none focus:ring-[#C3EBFA]"
       >
         <option value="">All services</option>
         {services.map((s) => (

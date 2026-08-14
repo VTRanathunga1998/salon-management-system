@@ -31,39 +31,53 @@ const RecentInvoicesTable = ({ invoices }: { invoices: RecentInvoice[] }) => {
           No invoices yet.
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
-              <th className="pb-2 font-medium">Invoice</th>
-              <th className="pb-2 font-medium">Customer</th>
-              <th className="pb-2 font-medium">Total</th>
-              <th className="pb-2 font-medium">Status</th>
-              <th className="pb-2 font-medium">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map((invoice) => (
-              <tr
-                key={invoice.id}
-                className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
-              >
-                <td className="py-3 font-medium text-slate-700">
-                  {invoice.invoiceNumber}
-                </td>
-                <td className="py-3 text-slate-600">{invoice.customerName}</td>
-                <td className="py-3 text-slate-600">
-                  AED {invoice.total.toFixed(2)}
-                </td>
-                <td className="py-3">
-                  <StatusBadge status={invoice.status} />
-                </td>
-                <td className="py-3 text-slate-400">
-                  {new Date(invoice.createdAt).toLocaleDateString()}
-                </td>
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+                  Invoice
+                </th>
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+                  Customer
+                </th>
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+                  Total
+                </th>
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+                  Status
+                </th>
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+                  Date
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {invoices.map((invoice) => (
+                <tr
+                  key={invoice.id}
+                  className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
+                >
+                  <td className="py-3 pr-4 font-medium text-slate-700 whitespace-nowrap">
+                    {invoice.invoiceNumber}
+                  </td>
+                  <td className="py-3 pr-4 text-slate-600 whitespace-nowrap">
+                    {invoice.customerName}
+                  </td>
+                  <td className="py-3 pr-4 text-slate-600 whitespace-nowrap">
+                    AED {invoice.total.toFixed(2)}
+                  </td>
+                  <td className="py-3 pr-4 whitespace-nowrap">
+                    <StatusBadge status={invoice.status} />
+                  </td>
+                  <td className="py-3 pr-4 text-slate-400 whitespace-nowrap">
+                    {new Date(invoice.createdAt).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

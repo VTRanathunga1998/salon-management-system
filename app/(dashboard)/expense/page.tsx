@@ -52,15 +52,15 @@ const ExpenseListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
-      <td className="py-2">{item.title}</td>
-      <td className="py-2 hidden md:table-cell">
+      <td className="px-2 md:px-0 py-2">{item.title}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">
         {formatLabel(item.category)}
       </td>
-      <td className="py-2">AED {Number(item.amount).toFixed(2)}</td>
-      <td className="py-2 hidden md:table-cell">{formatLabel(item.method)}</td>
-      <td className="py-2">{formatDateInSalonTz(item.date)}</td>
-      <td className="py-2">
-        <div className="flex flex-col md:flex-row items-center gap-2 py-2">
+      <td className="px-2 md:px-0 py-2">AED {Number(item.amount).toFixed(2)}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">{formatLabel(item.method)}</td>
+      <td className="px-2 md:px-0 py-2">{formatDateInSalonTz(item.date)}</td>
+      <td className="px-2 md:px-0 py-2">
+        <div className="flex flex-row items-center gap-2 py-2">
           <FormContainer table="expense" type="update" data={item} />
           <FormContainer table="expense" type="delete" id={item.id} />
         </div>
@@ -106,7 +106,7 @@ const ExpenseListPage = async ({
           </h1>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+        <div className="flex items-center gap-4 self-end">
           <TableSearch />
 
           <div className="flex items-center gap-4 self-end">

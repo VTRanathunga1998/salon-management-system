@@ -118,9 +118,9 @@ const EmployeeReportDashboard = ({
             <tbody>
               {employeeStats.map((e) => (
                 <tr key={e.employeeId} className="border-b border-gray-50">
-                  <td className="py-2">{e.name}</td>
-                  <td className="py-2 text-center">{e.servicesCount}</td>
-                  <td className="py-2 text-right font-medium">
+                  <td className="px-2 md:px-0 py-2">{e.name}</td>
+                  <td className="px-2 md:px-0 py-2 text-center">{e.servicesCount}</td>
+                  <td className="px-2 md:px-0 py-2 text-right font-medium">
                     {money(e.revenue)}
                   </td>
                 </tr>

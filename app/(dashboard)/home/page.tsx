@@ -66,13 +66,13 @@ const DashboardPage = async () => {
         <h1 className="text-2xl font-black tracking-tight text-slate-800">
           Dashboard
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="hidden md:block text-sm text-slate-400 mt-1">
           Overview of your salon today.
         </p>
       </div>
 
       <section>
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-400">
+        <h2 className="hidden md:block mb-4 text-xs font-semibold uppercase tracking-widest text-slate-400">
           At a Glance
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
