@@ -220,8 +220,10 @@ const InvoiceSuccessPanel = ({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => window.print()}
-            className="flex-1 min-w-[140px] py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition cursor-pointer"
+            onClick={() =>
+              window.open(`/api/invoices/${current.id}/pdf`, "_blank")
+            }
+            className="hidden sm:block flex-1 min-w-[140px] py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition cursor-pointer"
           >
             Print / Save as PDF
           </button>
