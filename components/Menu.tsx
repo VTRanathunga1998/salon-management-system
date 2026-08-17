@@ -140,7 +140,7 @@ const Menu = () => {
              */
             if (isReportItem && hasChildren) {
               return (
-                <div key={item.label} ref={reportsRef} className="relative">
+                <div key={item.label} ref={reportsRef} className="relative hidden lg:block">
                   {/* Reports toggle */}
                   <button
                     type="button"
