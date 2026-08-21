@@ -30,7 +30,12 @@ import { AlertCircle } from "lucide-react";
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];
   services: { id: string; name: string; price: number; isActive: boolean }[];
-  employees: { id: string; name: string; isActive: boolean }[];
+  employees: {
+    id: string;
+    name: string;
+    isActive: boolean;
+    qualifiedServiceIds: string[];
+  }[];
 };
 
 const discountTypeOptions = [
@@ -145,10 +150,16 @@ const InvoiceForm = ({
   const services = relatedData?.services ?? [];
   const employees = relatedData?.employees ?? [];
 
-  const employeeOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.name}${!e.isActive ? " (inactive)" : ""}`,
-  }));
+  // Staff options for a given line, filtered to only employees qualified
+  // for that line's selected service. With no service picked yet, show
+  // everyone — there's nothing to filter against.
+  const getStaffOptionsForService = (serviceId: string | undefined) =>
+    employees
+      .filter((e) => !serviceId || e.qualifiedServiceIds.includes(serviceId))
+      .map((e) => ({
+        value: e.id,
+        label: `${e.name}${!e.isActive ? " (inactive)" : ""}`,
+      }));
 
   // --- Live totals preview (display only — server recomputes authoritatively) ---
   const watchedItems = watch("items");
@@ -439,6 +450,8 @@ const InvoiceForm = ({
             const unitPrice = getLineUnitPrice(watchedItems[index] ?? {}) ?? 0;
             const lineTotal =
               unitPrice * (Number(watchedItems[index]?.quantity) || 0);
+            const staffOptionsForRow =
+              getStaffOptionsForService(selectedServiceId);
 
             return (
               <div
@@ -454,7 +467,31 @@ const InvoiceForm = ({
                         <ServiceCombobox
                           services={services}
                           value={field.value ?? ""}
-                          onChange={field.onChange}
+                          onChange={(newServiceId) => {
+                            field.onChange(newServiceId);
+
+                            // Changing the service can invalidate staff
+                            // already picked on this line — drop anyone
+                            // no longer qualified rather than silently
+                            // keeping a stale, now-hidden selection.
+                            const currentEmployeeIds =
+                              watchedItems[index]?.employeeIds ?? [];
+                            const qualifiedIds = new Set(
+                              employees
+                                .filter((e) =>
+                                  e.qualifiedServiceIds.includes(newServiceId),
+                                )
+                                .map((e) => e.id),
+                            );
+                            const pruned = currentEmployeeIds.filter((id) =>
+                              qualifiedIds.has(id),
+                            );
+                            if (pruned.length !== currentEmployeeIds.length) {
+                              setValue(`items.${index}.employeeIds`, pruned, {
+                                shouldValidate: true,
+                              });
+                            }
+                          }}
                           error={errors.items?.[index]?.serviceId?.message}
                         />
                       )}
@@ -468,8 +505,12 @@ const InvoiceForm = ({
                       render={({ field }) => (
                         <EmployeeMultiSelect
                           label="Staff"
-                          placeholder="Select staff…"
-                          options={employeeOptions}
+                          placeholder={
+                            selectedServiceId
+                              ? "Select staff…"
+                              : "Pick a service first…"
+                          }
+                          options={staffOptionsForRow}
                           value={field.value ?? []}
                           onChange={field.onChange}
                           error={

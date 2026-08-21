@@ -73,7 +73,7 @@ const forms: {
     <CustomerForm type={type} data={data} setOpen={setOpen} />
   ),
   employee: (setOpen, type, data, relatedData) => (
-    <EmployeeForm type={type} data={data} setOpen={setOpen} />
+    <EmployeeForm type={type} data={data} setOpen={setOpen} relatedData={relatedData}/>
   ),
   service: (setOpen, type, data, relatedData) => (
     <ServiceForm type={type} data={data} setOpen={setOpen} />

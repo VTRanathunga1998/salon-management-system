@@ -26,7 +26,15 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
               type === "update" && data?.items?.length
                 ? {} // show all when editing so previously-assigned (now inactive) staff still appear
                 : { isActive: true },
-            select: { id: true, name: true, isActive: true },
+            select: {
+              id: true,
+              name: true,
+              isActive: true,
+              // NEW — which services this employee is qualified to
+              // perform, so InvoiceForm can filter the staff picker
+              // per line item.
+              qualifiedServices: { select: { serviceId: true } },
+            },
             orderBy: { name: "asc" },
           }),
           prisma.service.findMany({
@@ -41,7 +49,14 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         relatedData = {
           customers,
-          employees,
+          // Reshape into a flat array of ids — easier for the client
+          // component to filter against than the nested join shape.
+          employees: employees.map((e) => ({
+            id: e.id,
+            name: e.name,
+            isActive: e.isActive,
+            qualifiedServiceIds: e.qualifiedServices.map((qs) => qs.serviceId),
+          })),
           services: services.map((s) => ({ ...s, price: Number(s.price) })),
         };
         break;
@@ -83,6 +98,33 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           });
           if (fullAppointment) {
             data = fullAppointment;
+          }
+        }
+
+        break;
+      }
+
+      case "employee": {
+        const services = await prisma.service.findMany({
+          where:
+            type === "update"
+              ? {} // show all so previously-qualified (now inactive) services still appear
+              : { isActive: true },
+          select: { id: true, name: true, isActive: true },
+          orderBy: { name: "asc" },
+        });
+
+        relatedData = { services };
+
+        if (type === "update" && data?.id) {
+          const fullEmployee = await prisma.employee.findUnique({
+            where: { id: data.id },
+            include: {
+              qualifiedServices: { select: { serviceId: true } },
+            },
+          });
+          if (fullEmployee) {
+            data = fullEmployee;
           }
         }
 

@@ -74,10 +74,6 @@ export const invoiceSchema = z
 export type InvoiceFormInput = z.input<typeof invoiceSchema>;
 export type InvoiceSchema = z.output<typeof invoiceSchema>;
 
-// Employee Schema
-
-// Shared helpers — keep these in one place if you haven't already,
-// since customerSchema uses the same logic.
 const toTitleCase = (str: string) =>
   str
     .trim()
@@ -132,6 +128,10 @@ export const employeeSchema = z.object({
     )
     .optional(),
 
+  serviceIds: z
+    .array(z.string())
+    .min(1, "Select at least one service this employee can perform"),
+
   isActive: z.boolean().default(true),
 });
 
@@ -179,10 +179,6 @@ export const serviceSchema = z.object({
 export type ServiceFormInput = z.input<typeof serviceSchema>;
 export type ServiceSchema = z.output<typeof serviceSchema>;
 
-// Merge this into your existing lib/formValidationsSchemas.ts, replacing
-// the current appointmentServiceSchema / appointmentSchema block.
-// Add this import near the top of that file:
-//   import { todayInSalonTz, nowTimeInSalonTz } from "@/lib/timezone";
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm, 24-hour
 const MAX_APPOINTMENT_MINUTES = 5 * 60; // 5 hours

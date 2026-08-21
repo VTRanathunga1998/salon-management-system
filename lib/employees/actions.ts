@@ -41,6 +41,10 @@ export async function createEmployee(
         phone: validated.phone,
         email: validated.email || null,
         address: validated.address || null,
+        // NEW — the services this employee is qualified to perform.
+        qualifiedServices: {
+          create: validated.serviceIds.map((serviceId) => ({ serviceId })),
+        },
       },
     });
 
@@ -99,18 +103,29 @@ export async function updateEmployee(
       };
     }
 
-    await prisma.employee.update({
-      where: {
-        id: validated.id,
-      },
-      data: {
-        name: validated.name,
-        phone: validated.phone,
-        email: validated.email || null,
-        address: validated.address || null,
-        isActive: validated.isActive,
-      },
-    });
+    // Wholesale replace: clear existing qualifications, then recreate from
+    // the submitted list — same pattern used for invoice items / appointment
+    // services elsewhere in this app, avoids diffing add/remove by hand.
+    await prisma.$transaction([
+      prisma.employeeService.deleteMany({
+        where: { employeeId: validated.id },
+      }),
+      prisma.employee.update({
+        where: {
+          id: validated.id,
+        },
+        data: {
+          name: validated.name,
+          phone: validated.phone,
+          email: validated.email || null,
+          address: validated.address || null,
+          isActive: validated.isActive,
+          qualifiedServices: {
+            create: validated.serviceIds.map((serviceId) => ({ serviceId })),
+          },
+        },
+      }),
+    ]);
 
     return {
       success: true,
@@ -216,7 +231,7 @@ export async function getEmployees() {
 }
 
 // Get Single Employee
- async function getEmployee(id: string) {
+async function getEmployee(id: string) {
   return prisma.employee.findUnique({
     where: {
       id,
