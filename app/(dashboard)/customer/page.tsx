@@ -104,11 +104,11 @@ const CustomerListPage = async ({
         </div>
 
         <div className="flex items-center gap-4 self-end">
-          <TableSearch />
+          <FormContainer table="customer" type="create" />
+        </div>
 
-          <div className="flex items-center gap-4 self-end">
-            <FormContainer table="customer" type="create" />
-          </div>
+        <div className="flex items-center gap-4 self-end">
+          <TableSearch />
         </div>
       </div>
 

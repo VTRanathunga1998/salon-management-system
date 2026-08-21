@@ -81,7 +81,9 @@ const InvoicesListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
       <td className="px-2 md:px-0 py-2">{item.invoiceNumber}</td>
-      <td className="px-2 md:px-0 py-2 hidden md:table-cell">{item.customer.name}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">
+        {item.customer.name}
+      </td>
       <td className="px-2 md:px-0 py-2">AED {Number(item.total).toFixed(2)}</td>
       <td className="px-2 md:px-0 py-2">{item.status}</td>
       <td className="px-2 md:px-0 py-2">
@@ -136,15 +138,17 @@ const InvoicesListPage = async ({
           </h1>
         </div>
 
-        <InvoiceStatusFilter />
+        <div className="flex items-center gap-4 self-end">
+          <FormContainer table="invoice" type="create" />
+        </div>
 
         <div className="flex items-center gap-4 self-end">
           <TableSearch />
-
-          <div className="flex items-center gap-4 self-end">
-            <FormContainer table="invoice" type="create" />
-          </div>
         </div>
+      </div>
+
+      <div>
+        <InvoiceStatusFilter />
       </div>
 
       {/* CONTENT */}

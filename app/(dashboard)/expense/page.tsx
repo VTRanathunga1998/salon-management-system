@@ -56,8 +56,12 @@ const ExpenseListPage = async ({
       <td className="px-2 md:px-0 py-2 hidden md:table-cell">
         {formatLabel(item.category)}
       </td>
-      <td className="px-2 md:px-0 py-2">AED {Number(item.amount).toFixed(2)}</td>
-      <td className="px-2 md:px-0 py-2 hidden md:table-cell">{formatLabel(item.method)}</td>
+      <td className="px-2 md:px-0 py-2">
+        AED {Number(item.amount).toFixed(2)}
+      </td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">
+        {formatLabel(item.method)}
+      </td>
       <td className="px-2 md:px-0 py-2">{formatDateInSalonTz(item.date)}</td>
       <td className="px-2 md:px-0 py-2">
         <div className="flex flex-row items-center gap-2 py-2">
@@ -107,11 +111,11 @@ const ExpenseListPage = async ({
         </div>
 
         <div className="flex items-center gap-4 self-end">
-          <TableSearch />
+          <FormContainer table="expense" type="create" />
+        </div>
 
-          <div className="flex items-center gap-4 self-end">
-            <FormContainer table="expense" type="create" />
-          </div>
+        <div className="flex items-center gap-4 self-end">
+          <TableSearch />
         </div>
       </div>
 

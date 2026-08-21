@@ -199,12 +199,71 @@ const FormModal = ({
 
   return (
     <>
-      <button
-        className={`${size} flex items-center justify-center rounded-full ${bgColor} cursor-pointer`}
-        onClick={() => setOpen(true)}
-      >
-        <Image src={`/${type}.png`} alt="" height={16} width={16} />
-      </button>
+      {type === "create" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="
+      group
+      inline-flex
+      items-center
+      justify-center
+      gap-2
+      min-w-[320px]
+      px-5
+      py-2.5
+      rounded-xl
+      bg-gradient-to-r
+      from-[#C3EBFA]
+      to-[#CFCEFF]
+      text-gray-800
+      text-sm
+      font-semibold
+      shadow-sm
+      ring-1
+      ring-black/5
+      transition-all
+      duration-200
+      hover:-translate-y-0.5
+      hover:shadow-md
+      hover:brightness-[1.02]
+      active:translate-y-0
+      active:shadow-sm
+      cursor-pointer
+    "
+        >
+          <span
+            className="
+        flex
+        h-6
+        w-6
+        items-center
+        justify-center
+        rounded-full
+        bg-white/70
+        text-gray-700
+        text-lg
+        font-medium
+        leading-none
+        transition-transform
+        duration-200
+        group-hover:rotate-90
+      "
+          >
+            +
+          </span>
+
+          <span>Create {table.charAt(0).toUpperCase() + table.slice(1)}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={`${size} flex items-center justify-center rounded-full ${bgColor} cursor-pointer`}
+          onClick={() => setOpen(true)}
+        >
+          <Image src={`/${type}.png`} alt="" height={16} width={16} />
+        </button>
+      )}
       {open && (
         <div
           id="datepicker-portal"

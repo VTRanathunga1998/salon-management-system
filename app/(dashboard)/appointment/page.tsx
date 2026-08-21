@@ -148,12 +148,12 @@ const AppointmentListPage = async ({
           </div>
 
           <div className="flex items-center gap-4 self-end">
-          {/* <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto"> */}
-            <TableSearch />
+            <FormContainer table="appointment" type="create" />
+          </div>
 
-            <div className="flex items-center gap-4 self-end">
-              <FormContainer table="appointment" type="create" />
-            </div>
+          <div className="flex items-center gap-4 self-end">
+            <TableSearch />
+            {/* <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto"> */}
           </div>
         </div>
 
