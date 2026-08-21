@@ -71,6 +71,10 @@ const menuItems = [
             label: "Expense Report",
             href: "/report/expense",
           },
+          {
+            label: "Customer Report",
+            href: "/report/customer",
+          },
         ],
       },
     ],
@@ -140,7 +144,11 @@ const Menu = () => {
              */
             if (isReportItem && hasChildren) {
               return (
-                <div key={item.label} ref={reportsRef} className="relative hidden lg:block">
+                <div
+                  key={item.label}
+                  ref={reportsRef}
+                  className="relative hidden lg:block"
+                >
                   {/* Reports toggle */}
                   <button
                     type="button"

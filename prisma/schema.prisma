@@ -107,9 +107,7 @@ model Employee {
   // Soft delete: never hard-delete an employee referenced by invoices.
   isActive Boolean @default(true)
 
-  // REMOVED: invoiceItems InvoiceItem[]  <- stale, no longer matches
-  // anything on InvoiceItem now that it goes through the join table.
-  // ADDED: back-reference to the new join table.
+  salaryExpenses Expense[]
   invoiceItemAssignments InvoiceItemEmployee[]
   qualifiedServices      EmployeeService[]
   appointmentServices    AppointmentService[]
@@ -296,6 +294,12 @@ model Expense {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  salaryMonth String?   // "YYYY-MM", set only when category = SALARIES
+
+  @@unique([employeeId, salaryMonth])
 
   @@index([date])
   @@index([category])
