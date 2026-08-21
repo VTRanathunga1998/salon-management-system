@@ -8,7 +8,6 @@ import {
   startTransition,
   useActionState,
   useEffect,
-  useState,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -23,7 +22,6 @@ import CustomerCombobox from "@/components/Customercombobox";
 import ServiceCombobox from "@/components/ServiceCombobox";
 import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect ";
 import { toast } from "react-toastify";
-import InvoicePreview from "@/components/invoice/InvoicePreview";
 import InvoiceSuccessPanel from "@/components/invoice/InvoiceSuccessPanel";
 import { AlertCircle } from "lucide-react";
 
@@ -115,9 +113,6 @@ const InvoiceForm = ({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const [step, setStep] = useState<"form" | "preview">("form");
-  const [previewData, setPreviewData] = useState<InvoiceSchema | null>(null);
-
   const [state, formAction, pending] = useActionState(
     type === "create" ? createInvoice : updateInvoice,
     { success: false, error: false, message: "" },
@@ -202,11 +197,9 @@ const InvoiceForm = ({
 
   const isEditingCancelled = type === "update" && watchedStatus === "CANCELLED";
 
-  // For create: validate, then show the print-style preview before anything is saved.
-  // For update: submit directly — editing an already-issued/partially-paid invoice
+  // Preview step removed — submitting now creates/saves the invoice
+  // directly, same as the update flow already did.
   const onSubmit = handleSubmit((formData) => {
-    // Recompute subtotal here too (rather than trusting the render-time
-    // `subtotal` closure) since this runs inside handleSubmit's own callback.
     const submittedSubtotal = formData.items.reduce((sum, item) => {
       const unitPrice = getLineUnitPrice(item);
       if (unitPrice == null) return sum;
@@ -242,23 +235,10 @@ const InvoiceForm = ({
       return;
     }
 
-    if (type === "create") {
-      setPreviewData(formData);
-      setStep("preview");
-    } else {
-      startTransition(() => {
-        formAction(formData);
-      });
-    }
+    startTransition(() => {
+      formAction(formData);
+    });
   });
-
-  const onConfirmCreate = () => {
-    if (previewData) {
-      startTransition(() => {
-        formAction(previewData);
-      });
-    }
-  };
 
   // --- Gate: fully paid invoices are read-only ---
   if (type === "update" && data?.status === "PAID") {
@@ -296,75 +276,6 @@ const InvoiceForm = ({
           router.refresh();
         }}
       />
-    );
-  }
-
-  // --- Step: print-style preview before a NEW invoice is actually saved ---
-  if (step === "preview" && previewData) {
-    const previewCustomer = customers.find(
-      (c) => c.id === previewData.customerId,
-    );
-    const previewItems = previewData.items.map((item) => {
-      const service = serviceMap.get(item.serviceId);
-      const staffNames = item.employeeIds
-        .map((id) => employees.find((e) => e.id === id)?.name)
-        .filter(Boolean)
-        .join(", ");
-      const qty = Number(item.quantity) || 0;
-      const unitPrice = getLineUnitPrice(item) ?? 0;
-      return {
-        serviceName: service?.name ?? "Unknown service",
-        employeeName: staffNames || "Unassigned",
-        quantity: qty,
-        unitPrice,
-        subtotal: unitPrice * qty,
-      };
-    });
-
-    return (
-      <div className="flex flex-col gap-5">
-        <h2 className="text-lg font-semibold text-gray-800">Review Invoice</h2>
-
-        <InvoicePreview
-          status="DRAFT"
-          date={new Date()}
-          customer={{
-            name: previewCustomer?.name ?? "Unknown customer",
-            phone: previewCustomer?.phone ?? "",
-          }}
-          items={previewItems}
-          subtotal={subtotal}
-          discountTotal={discountTotal}
-          taxTotal={taxTotal}
-          total={total}
-          notes={previewData.notes}
-        />
-
-        {state.error && (
-          <div className="flex items-center gap-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 animate-[shake_0.4s]">
-            <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-            <p className="text-xs font-medium text-red-600">{state.message}</p>
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => setStep("form")}
-            className="flex-1 py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition cursor-pointer"
-          >
-            Back to edit
-          </button>
-          <button
-            type="button"
-            onClick={onConfirmCreate}
-            disabled={pending}
-            className="flex-1 py-2.5 rounded-lg bg-[#C3EBFA] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 transition cursor-pointer"
-          >
-            {pending ? "Creating…" : "Confirm & Create Invoice"}
-          </button>
-        </div>
-      </div>
     );
   }
 
@@ -446,7 +357,6 @@ const InvoiceForm = ({
         <div className="flex flex-col gap-3">
           {fields.map((field, index) => {
             const selectedServiceId = watchedItems[index]?.serviceId;
-            const lineService = serviceMap.get(selectedServiceId);
             const unitPrice = getLineUnitPrice(watchedItems[index] ?? {}) ?? 0;
             const lineTotal =
               unitPrice * (Number(watchedItems[index]?.quantity) || 0);
@@ -731,7 +641,7 @@ const InvoiceForm = ({
           {pending
             ? "Saving…"
             : type === "create"
-              ? "Preview Invoice"
+              ? "Create Invoice"
               : "Save Changes"}
         </button>
       </div>

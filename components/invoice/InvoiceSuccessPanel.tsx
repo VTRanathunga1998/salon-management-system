@@ -22,9 +22,9 @@ const InvoiceSuccessPanel = ({
     Math.max(Number(invoice.total) - paidSoFar(invoice), 0).toFixed(2),
   );
   const [paymentMethod, setPaymentMethod] = useState<
-    "CASH" | "CARD" | "BANK_TRANSFER"
+    "CASH" | "CARD" | "BANK_TRANSFER" | "CREDIT"
   >("CASH");
-  const [recording, setRecording] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [lastChange, setLastChange] = useState<number | null>(null);
 
@@ -41,18 +41,35 @@ const InvoiceSuccessPanel = ({
   const amountPaid = paidSoFar(current);
   const balanceDue = Number(current.total) - amountPaid;
 
-  const handleRecordPayment = async () => {
+  // Replaces the old standalone "Record Payment" button — Done now does
+  // both jobs: record the payment (unless CREDIT), then close.
+  const handleDone = async () => {
+    // Nothing to record: already settled, or this is a read-only view
+    // (PAID / CANCELLED) where payment collection isn't offered at all.
+    if (!allowPayment || balanceDue <= 0) {
+      onDone();
+      return;
+    }
+
+    // Credit: the customer hasn't actually paid. Leave the invoice exactly
+    // as it is — no Payment row, no status change — and just close.
+    if (paymentMethod === "CREDIT") {
+      onDone();
+      return;
+    }
+
     const amount = Number(paymentAmount);
     if (!amount || amount <= 0) {
       setPaymentError("Enter a valid amount.");
       return;
     }
 
-    setRecording(true);
+    setFinishing(true);
     setPaymentError("");
     setLastChange(null);
+
     const res = await recordInvoicePayment(current.id, amount, paymentMethod);
-    setRecording(false);
+    setFinishing(false);
 
     if (!res.success || !res.invoice) {
       const message = res.message || "Failed to record payment.";
@@ -73,8 +90,7 @@ const InvoiceSuccessPanel = ({
       toast.success("Payment recorded.");
     }
 
-    const newBalance = Number(res.invoice.total) - paidSoFar(res.invoice);
-    setPaymentAmount(Math.max(newBalance, 0).toFixed(2));
+    onDone();
   };
 
   const isValidEmail = (email: string) => {
@@ -151,45 +167,52 @@ const InvoiceSuccessPanel = ({
         balanceDue > 0 ? (
           <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4 flex flex-col gap-3">
             <p className="text-sm font-medium text-gray-700">
-              Record a payment — balance due: AED {balanceDue.toFixed(2)}
+              Balance due: AED {balanceDue.toFixed(2)}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="number"
-                step="0.01"
-                min={0}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                className="ring-[1.5px] ring-gray-200 rounded-lg p-2.5 text-sm focus:outline-none flex-1"
-                placeholder="Amount"
-              />
+              {paymentMethod !== "CREDIT" && (
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="ring-[1.5px] ring-gray-200 rounded-lg p-2.5 text-sm focus:outline-none flex-1"
+                  placeholder="Amount"
+                />
+              )}
               <select
                 value={paymentMethod}
                 onChange={(e) =>
                   setPaymentMethod(e.target.value as typeof paymentMethod)
                 }
-                className="ring-[1.5px] ring-gray-200 rounded-lg p-2.5 text-sm focus:outline-none bg-white sm:w-40"
+                className={`ring-[1.5px] ring-gray-200 rounded-lg p-2.5 text-sm focus:outline-none bg-white ${
+                  paymentMethod === "CREDIT" ? "flex-1" : "sm:w-40"
+                }`}
               >
                 <option value="CASH">Cash</option>
                 <option value="CARD">Card</option>
                 <option value="BANK_TRANSFER">Bank Transfer</option>
+                <option value="CREDIT">Credit (pay later)</option>
               </select>
-              <button
-                type="button"
-                onClick={handleRecordPayment}
-                disabled={recording}
-                className="rounded-lg bg-[#C3EBFA] hover:brightness-95 disabled:opacity-50 text-sm font-medium text-gray-800 px-4 py-2.5 cursor-pointer"
-              >
-                {recording ? "Recording…" : "Record Payment"}
-              </button>
             </div>
-            {Number(paymentAmount) > balanceDue && (
-              <p className="text-xs text-blue-600">
-                Only AED {balanceDue.toFixed(2)} will be recorded as payment —
-                the rest (AED {(Number(paymentAmount) - balanceDue).toFixed(2)})
-                is change to hand back, not revenue.
+
+            {paymentMethod === "CREDIT" ? (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2.5">
+                No payment will be recorded — this invoice stays open with a
+                balance of AED {balanceDue.toFixed(2)}.
               </p>
+            ) : (
+              Number(paymentAmount) > balanceDue && (
+                <p className="text-xs text-blue-600">
+                  Only AED {balanceDue.toFixed(2)} will be recorded as payment —
+                  the rest (AED{" "}
+                  {(Number(paymentAmount) - balanceDue).toFixed(2)}) is change
+                  to hand back, not revenue.
+                </p>
+              )
             )}
+
             {paymentError && (
               <p className="text-xs text-red-500">{paymentError}</p>
             )}
@@ -229,7 +252,7 @@ const InvoiceSuccessPanel = ({
           </button>
           <a
             href={`/api/invoices/${current.id}/pdf`}
-            className="flex-1 min-w-[140px] py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition text-center cursor-pointer"
+            className="hidden sm:block flex-1 min-w-[140px] py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition text-center cursor-pointer"
           >
             Download PDF
           </a>
@@ -277,10 +300,11 @@ const InvoiceSuccessPanel = ({
 
       <button
         type="button"
-        onClick={onDone}
-        className="w-full py-2.5 rounded-lg bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium transition cursor-pointer"
+        onClick={handleDone}
+        disabled={finishing}
+        className="w-full py-2.5 rounded-lg bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white text-sm font-medium transition cursor-pointer"
       >
-        Done
+        {finishing ? "Recording…" : "Done"}
       </button>
     </div>
   );
