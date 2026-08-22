@@ -13,8 +13,6 @@ import fs from "fs";
 
 const LOGO_PATH = path.join(process.cwd(), "public", "logo.png");
 
-console.log("Logo exists?", fs.existsSync(LOGO_PATH), LOGO_PATH);
-
 const logoBuffer = fs.readFileSync(LOGO_PATH);
 
 const styles = StyleSheet.create({

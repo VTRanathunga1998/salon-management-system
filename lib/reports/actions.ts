@@ -7,7 +7,7 @@ export interface ReportFilters {
 }
 
 export async function getReportData({ from, to }: ReportFilters) {
-  const [payments, invoices, newCustomersCount] = await Promise.all([
+  const [payments, invoices, expenseAgg] = await Promise.all([
     // Actual cash collected in the range (what "revenue" means to an owner)
     prisma.payment.findMany({
       where: { status: "COMPLETED", paidAt: { gte: from, lte: to } },
@@ -22,7 +22,7 @@ export async function getReportData({ from, to }: ReportFilters) {
       },
       select: {
         id: true,
-        invoiceNumber: true, // NEW — needed for the itemized log below
+        invoiceNumber: true,
         total: true,
         status: true,
         createdAt: true,
@@ -46,7 +46,11 @@ export async function getReportData({ from, to }: ReportFilters) {
       },
     }),
 
-    prisma.customer.count({ where: { createdAt: { gte: from, lte: to } } }),
+    // Expenses recorded in the range — used for Total Profit
+    prisma.expense.aggregate({
+      where: { date: { gte: from, lte: to } },
+      _sum: { amount: true },
+    }),
   ]);
 
   // --- Headline numbers ---
@@ -57,6 +61,10 @@ export async function getReportData({ from, to }: ReportFilters) {
     return s + Math.max(Number(inv.total) - paid, 0);
   }, 0);
 
+  // Profit = total invoiced (regardless of payment status) - total expenses
+  const totalExpense = Number(expenseAgg._sum.amount ?? 0);
+  const totalProfit = invoicedTotal - totalExpense;
+
   // --- Time series: daily buckets for ranges up to a month, monthly beyond that ---
   const rangeDays = Math.max(
     1,
@@ -64,7 +72,7 @@ export async function getReportData({ from, to }: ReportFilters) {
   );
   const granularity: "day" | "month" = rangeDays <= 31 ? "day" : "month";
   const bucketKey = (d: Date) =>
-    granularity === "day" ? toDateInputInSalonTz (d) : toMonthInSalonTz(d);
+    granularity === "day" ? toDateInputInSalonTz(d) : toMonthInSalonTz(d);
 
   const revenueBuckets = new Map<string, number>();
   for (const p of payments) {
@@ -197,7 +205,8 @@ export async function getReportData({ from, to }: ReportFilters) {
       invoicedTotal,
       outstanding,
       invoiceCount: invoices.length,
-      newCustomers: newCustomersCount,
+      totalExpense,
+      totalProfit,
       customersServed: customerMap.size,
     },
     revenueSeries,
@@ -206,7 +215,7 @@ export async function getReportData({ from, to }: ReportFilters) {
     serviceStats,
     topCustomers,
     statusBreakdown,
-    employeeServiceLog, // NEW
+    employeeServiceLog,
   };
 }
 

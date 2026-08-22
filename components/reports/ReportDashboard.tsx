@@ -17,8 +17,10 @@ import {
   toDateInputInSalonTz,
 } from "@/lib/utils/timezone";
 
-const money = (n: number) =>
-  `AED ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n: number) => {
+  const sign = n < 0 ? "-" : "";
+  return `${sign}AED ${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const ReportDashboard = ({
   report,
@@ -89,7 +91,7 @@ const ReportDashboard = ({
         <KpiCard label="Outstanding" value={money(summary.outstanding)} />
         <KpiCard label="Invoices" value={summary.invoiceCount} />
         <KpiCard label="Customers Served" value={summary.customersServed} />
-        <KpiCard label="New Customers" value={summary.newCustomers} />
+        <KpiCard label="Total Profit" value={money(summary.totalProfit)} />
       </div>
 
       {/* Revenue over time */}

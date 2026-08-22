@@ -22,51 +22,21 @@ const ReportPage = async ({
 }) => {
   const params = await searchParams;
 
-  /*
-   * Get today's date in the salon timezone.
-   *
-   * Example:
-   * Server UTC:       2026-08-12 23:00
-   * Salon Colombo:    2026-08-13 04:30
-   *
-   * todayInSalonTz() correctly returns 2026-08-13.
-   */
+
   const today = todayInSalonTz();
 
-  /*
-   * Default "from" = first day of the current month
-   * in the salon timezone.
-   *
-   * Example:
-   * today = 2026-08-13
-   * from  = 2026-08-01 00:00:00 Asia/Colombo
-   */
   const [year, month] = today.split("-");
 
   const defaultFromString = `${year}-${month}-01`;
 
-  /*
-   * Default "to" = today in salon timezone.
-   */
   const defaultToString = today;
 
-  /*
-   * Validate query parameters.
-   */
   const fromString = isValidDateString(params.from)
     ? params.from!
     : defaultFromString;
 
   const toString = isValidDateString(params.to) ? params.to! : defaultToString;
 
-  /*
-   * Convert salon calendar dates into absolute Date objects.
-   *
-   * These represent:
-   *
-   * from = 00:00:00.000 Colombo time
-   * to   = 23:59:59.999 Colombo time
-   */
   const from = startOfDayInSalonTz(fromString);
   const to = endOfDayInSalonTz(toString);
 
