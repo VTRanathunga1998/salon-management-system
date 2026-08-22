@@ -22,7 +22,7 @@ export default async function DashboardLayout({
         >
           <Image
             src="/logo.png"
-            alt="salon logo"
+            alt="Avenue Ladies Salon"
             width={32}
             height={32}
             className="w-8 h-auto"

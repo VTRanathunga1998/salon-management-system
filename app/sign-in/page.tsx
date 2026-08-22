@@ -155,7 +155,7 @@ const SignInPage = () => {
             <div className="logo-box">
               <Image
                 src="/logo.png"
-                alt="Salon Logo"
+                alt="Avenue Ladies Salon"
                 width={52}
                 height={52}
                 className="object-contain"
