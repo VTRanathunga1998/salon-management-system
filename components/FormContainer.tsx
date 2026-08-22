@@ -2,7 +2,13 @@ import { prisma } from "@/lib/prisma";
 import FormModal from "./FormModal";
 
 export type FormContainerProps = {
-  table: "invoice" | "customer" | "employee" | "service" | "appointment" | "expense";
+  table:
+    | "invoice"
+    | "customer"
+    | "employee"
+    | "service"
+    | "appointment"
+    | "expense";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
@@ -127,6 +133,26 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             data = fullEmployee;
           }
         }
+
+        break;
+      }
+
+      case "expense": {
+        const employees = await prisma.employee.findMany({
+          where: {
+            isActive: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+          },
+          orderBy: {
+            name: "asc",
+          },
+        });
+
+        relatedData = { employees };
 
         break;
       }

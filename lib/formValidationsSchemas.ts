@@ -179,7 +179,6 @@ export const serviceSchema = z.object({
 export type ServiceFormInput = z.input<typeof serviceSchema>;
 export type ServiceSchema = z.output<typeof serviceSchema>;
 
-
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm, 24-hour
 const MAX_APPOINTMENT_MINUTES = 5 * 60; // 5 hours
 
@@ -327,52 +326,115 @@ const toSentenceCase = (value: string) => {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
 
-export const expenseSchema = z.object({
-  id: z.string().optional(),
-
-  title: z
-    .string()
-    .trim()
-    .min(2, {
-      message: "Title must be at least 2 characters long!",
-    })
-    .max(150, {
-      message: "Title is too long!",
-    })
-    .transform(toSentenceCase),
-
-  category: z.nativeEnum(ExpenseCategory).default(ExpenseCategory.OTHER),
+const salaryEntrySchema = z.object({
+  employeeId: z.string().min(1, "Select an employee"),
 
   amount: z.coerce
     .number({
-      message: "Amount must be a valid number!",
+      message: "Salary amount must be a valid number!",
     })
     .gt(0, {
-      message: "Amount must be greater than 0!",
+      message: "Salary amount must be greater than 0!",
     })
     .max(10_000_000, {
-      message: "Amount seems too high — check this!",
+      message: "Salary amount seems too high — check this!",
     }),
-
-  method: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
-
-  date: z
-    .string()
-    .min(1, {
-      message: "Date is required!",
-    })
-    .refine((d) => d <= todayInSalonTz(), {
-      message: "Expense date can't be in the future.",
-    }),
-
-  notes: z
-    .string()
-    .max(500, {
-      message: "Notes are too long!",
-    })
-    .optional()
-    .or(z.literal("")),
 });
 
+export const expenseSchema = z
+  .object({
+    id: z.string().optional(),
+
+    title: z
+      .string()
+      .trim()
+      .min(2, {
+        message: "Title must be at least 2 characters long!",
+      })
+      .max(150, {
+        message: "Title is too long!",
+      })
+      .transform((value) =>
+        value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()),
+      ),
+
+    category: z.nativeEnum(ExpenseCategory).default(ExpenseCategory.OTHER),
+
+    amount: z.coerce
+      .number({
+        message: "Amount must be a valid number!",
+      })
+      .max(10_000_000, {
+        message: "Amount seems too high — check this!",
+      })
+      .optional(),
+
+    method: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
+
+    date: z
+      .string()
+      .min(1, {
+        message: "Date is required!",
+      })
+      .refine((date) => date <= todayInSalonTz(), {
+        message: "Expense date can't be in the future.",
+      }),
+
+    notes: z
+      .string()
+      .max(500, {
+        message: "Notes are too long!",
+      })
+      .optional()
+      .or(z.literal("")),
+
+    salaryEntries: z.array(salaryEntrySchema).optional(),
+  })
+
+  .refine(
+    (data) => {
+      const isNewSalary =
+        !data.id && data.category === ExpenseCategory.SALARIES;
+
+      if (!isNewSalary) return true;
+
+      return (data.salaryEntries?.length ?? 0) > 0;
+    },
+    {
+      message: "Add at least one employee and salary amount.",
+      path: ["salaryEntries"],
+    },
+  )
+
+  .refine(
+    (data) => {
+      const isNewSalary =
+        !data.id && data.category === ExpenseCategory.SALARIES;
+
+      if (isNewSalary) return true;
+
+      return (data.amount ?? 0) > 0;
+    },
+    {
+      message: "Amount must be greater than 0!",
+      path: ["amount"],
+    },
+  )
+
+  .refine(
+    (data) => {
+      if (!data.salaryEntries) return true;
+
+      const employeeIds = data.salaryEntries.map((entry) => entry.employeeId);
+
+      return new Set(employeeIds).size === employeeIds.length;
+    },
+    {
+      message: "Each employee can only appear once in this salary batch.",
+      path: ["salaryEntries"],
+    },
+  );
+
 export type ExpenseFormInput = z.input<typeof expenseSchema>;
+
 export type ExpenseSchema = z.output<typeof expenseSchema>;

@@ -9,7 +9,12 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { serializeData } from "@/lib/utils/serialize";
 import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
-type ExpenseList = Expense;
+type ExpenseList = Expense & {
+  employee: {
+    id: string;
+    name: string;
+  };
+};
 
 const formatLabel = (v: string) =>
   v.charAt(0) + v.slice(1).toLowerCase().replace("_", " ");
@@ -52,7 +57,11 @@ const ExpenseListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
-      <td className="px-2 md:px-0 py-2">{item.title}</td>
+      <td className="px-2 md:px-0 py-2">
+        {item.category === "SALARIES" && item.employee
+          ? `${item.title} - ${item.employee.name}`
+          : item.title}
+      </td>
       <td className="px-2 md:px-0 py-2 hidden md:table-cell">
         {formatLabel(item.category)}
       </td>
@@ -89,16 +98,31 @@ const ExpenseListPage = async ({
   const [data, count, totalAgg] = await prisma.$transaction([
     prisma.expense.findMany({
       where: query,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { date: "desc" },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),
-    prisma.expense.count({ where: query }),
-    prisma.expense.aggregate({ where: query, _sum: { amount: true } }),
+
+    prisma.expense.count({
+      where: query,
+    }),
+
+    prisma.expense.aggregate({
+      where: query,
+      _sum: {
+        amount: true,
+      },
+    }),
   ]);
-
-  const totalAmount = Number(totalAgg._sum.amount ?? 0);
-
+  // console.log(data);
   return (
     <div className="flex-1 bg-white p-6 mt-0 space-y-4 md:p-4">
       {/* ── Top bar ── */}

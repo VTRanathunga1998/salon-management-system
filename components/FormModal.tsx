@@ -73,7 +73,12 @@ const forms: {
     <CustomerForm type={type} data={data} setOpen={setOpen} />
   ),
   employee: (setOpen, type, data, relatedData) => (
-    <EmployeeForm type={type} data={data} setOpen={setOpen} relatedData={relatedData}/>
+    <EmployeeForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
   ),
   service: (setOpen, type, data, relatedData) => (
     <ServiceForm type={type} data={data} setOpen={setOpen} />
@@ -86,8 +91,13 @@ const forms: {
       relatedData={relatedData}
     />
   ),
-  expense: (setOpen, type, data) => (
-    <ExpenseForm type={type} data={data} setOpen={setOpen} />
+  expense: (setOpen, type, data, relatedData) => (
+    <ExpenseForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
   ),
 };
 
