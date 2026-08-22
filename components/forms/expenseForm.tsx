@@ -318,7 +318,7 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
                     {/* Salary */}
                     <div className="flex-1">
                       <InputField
-                        label="Salary (Rs.)"
+                        label="Salary (AED)"
                         name={`salaryEntries.${index}.amount`}
                         register={register}
                         error={errors.salaryEntries?.[index]?.amount}
@@ -383,7 +383,7 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
               </span>
 
               <span className="text-lg font-bold text-gray-800">
-                Rs. {salaryTotal.toFixed(2)}
+              AED {salaryTotal.toFixed(2)}
               </span>
             </div>
           )}
@@ -403,7 +403,7 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
 
         <div className="flex flex-col md:flex-row gap-4">
           <InputField
-            label="Amount (Rs.)"
+            label="Amount (AED)"
             type="number"
             name="amount"
             register={register}

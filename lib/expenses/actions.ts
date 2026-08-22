@@ -237,7 +237,7 @@ export async function createExpense(
           salaryEntries.length === 1
             ? ""
             : "s"
-        } recorded. Total: Rs. ${totalSalary.toFixed(
+        } recorded. Total: AED ${totalSalary.toFixed(
           2,
         )}`,
       };
