@@ -331,9 +331,9 @@ const ReportPdfDocument = ({
           </View>
 
           <View style={[styles.kpiBox, styles.kpiBoxLast]}>
-            <Text style={styles.kpiLabel}>New Customers</Text>
-            <Text style={styles.kpiValue}>{summary.newCustomers}</Text>
-            <Text style={styles.kpiDescription}>Customers registered</Text>
+            <Text style={styles.kpiLabel}>Customers Served</Text>
+            <Text style={styles.kpiValue}>{summary.customersServed}</Text>
+            <Text style={styles.kpiDescription}>Customers served</Text>
           </View>
         </View>
 

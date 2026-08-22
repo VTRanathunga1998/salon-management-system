@@ -37,9 +37,17 @@ export const metadata: Metadata = {
       },
     ],
   },
+
+  appleWebApp: {
+    title: BUSINESS_INFO.name,
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
-<meta name="apple-mobile-web-app-title" content="Avenue" />;
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
 
 export default function RootLayout({
   children,
@@ -48,15 +56,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <meta
-          name="apple-mobile-web-app-title"
-          content="SmartUniversitySystem"
-        />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-      </head>
       <body className={inter.className}>
         {children}
         <ToastProvider />
