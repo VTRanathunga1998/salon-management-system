@@ -214,51 +214,57 @@ const FormModal = ({
           type="button"
           onClick={() => setOpen(true)}
           className="
-      group
-      inline-flex
-      items-center
-      justify-center
-      gap-2
-      min-w-[320px]
-      px-5
-      py-2.5
-      rounded-xl
-      bg-gradient-to-r
-      from-[#C3EBFA]
-      to-[#CFCEFF]
-      text-gray-800
-      text-sm
-      font-semibold
-      shadow-sm
-      ring-1
-      ring-black/5
-      transition-all
-      duration-200
-      hover:-translate-y-0.5
-      hover:shadow-md
-      hover:brightness-[1.02]
-      active:translate-y-0
-      active:shadow-sm
-      cursor-pointer
-    "
+            group
+            inline-flex
+            w-full
+            sm:w-[auto]
+            min-w-0
+            lg:min-w-[220px]
+            items-center
+            justify-center
+            gap-2
+            px-4
+            sm:px-5
+            py-2.5
+            rounded-xl
+            bg-gradient-to-r
+            from-[#C3EBFA]
+            to-[#CFCEFF]
+            text-gray-800
+            text-sm
+            font-semibold
+            whitespace-nowrap
+            shadow-sm
+            ring-1
+            ring-black/5
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-md
+            hover:brightness-[1.02]
+            active:translate-y-0
+            active:shadow-sm
+            cursor-pointer
+          "
         >
           <span
             className="
-        flex
-        h-6
-        w-6
-        items-center
-        justify-center
-        rounded-full
-        bg-white/70
-        text-gray-700
-        text-lg
-        font-medium
-        leading-none
-        transition-transform
-        duration-200
-        group-hover:rotate-90
-      "
+              flex
+              h-6
+              w-6
+              shrink-0
+              items-center
+              justify-center
+              rounded-full
+              bg-white/70
+              text-gray-700
+              text-lg
+              font-medium
+              leading-none
+              transition-transform
+              duration-200
+              group-hover:rotate-90
+            "
           >
             +
           </span>

@@ -46,7 +46,6 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
       >
         Today
       </button>
-
       <div className="hidden md:flex items-center gap-2">
         <input
           type="date"
@@ -62,7 +61,6 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
           className="text-xs ring-[1.5px] ring-gray-200 rounded-md px-2 py-2 outline-none focus:ring-[#C3EBFA]"
         />
       </div>
-
       <select
         value={serviceId}
         onChange={(e) => updateParams({ serviceId: e.target.value || null })}
@@ -75,7 +73,6 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
           </option>
         ))}
       </select>
-
       {(from || to || serviceId) && (
         <button
           type="button"
@@ -85,8 +82,8 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
           Clear filters
         </button>
       )}
-
-      <button
+      
+      {/* <button
         type="button"
         disabled
         title="Calendar view — coming soon"
@@ -94,7 +91,7 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
       >
         <Calendar className="h-3.5 w-3.5" />
         Calendar view
-      </button>
+      </button> */}
     </div>
   );
 };

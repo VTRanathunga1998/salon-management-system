@@ -31,46 +31,59 @@ const DashboardFilter = () => {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex rounded-xl border border-slate-200 bg-white p-1">
-        {RANGE_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => applyRange(opt.value, from, to)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-              currentRange === opt.value
-                ? "bg-slate-800 text-white"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {currentRange === "custom" && (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600"
-          />
-          <span className="text-xs text-slate-400">to</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600"
-          />
-          <button
-            onClick={() => applyRange("custom", from, to)}
-            disabled={!from || !to}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-          >
-            Apply
-          </button>
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        {/* Range options */}
+        <div className="flex w-full flex-wrap rounded-xl border border-slate-200 bg-white p-1 sm:w-auto">
+          {RANGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => applyRange(opt.value, from, to)}
+              className={`flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:flex-none ${
+                currentRange === opt.value
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      )}
+
+        {/* Custom date range */}
+        {currentRange === "custom" && (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 sm:w-auto"
+            />
+
+            <span className="hidden text-xs text-slate-400 sm:inline">to</span>
+
+            <span className="text-center text-xs text-slate-400 sm:hidden">
+              to
+            </span>
+
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 sm:w-auto"
+            />
+
+            <button
+              type="button"
+              onClick={() => applyRange("custom", from, to)}
+              disabled={!from || !to}
+              className="w-full rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

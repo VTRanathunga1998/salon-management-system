@@ -103,11 +103,11 @@ const EmployeeListPage = async ({
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 self-end">
+        <div className="flex items-center gap-4 lg:self-end">
           <FormContainer table="employee" type="create" />
         </div>
 
-        <div className="flex items-center gap-4 self-end">
+        <div className="flex items-center gap-4 lg:self-end">
           <TableSearch />
         </div>
       </div>
