@@ -104,3 +104,79 @@ export function toMonthInSalonTz(d: Date | string): string {
   const month = parts.find((p) => p.type === "month")!.value;
   return `${year}-${month}`;
 }
+
+export type DashboardRangeType = "today" | "week" | "month" | "custom";
+
+/** Shifts a "yyyy-mm-dd" string by N calendar days. Pure date-arithmetic,
+ *  done in a fixed UTC anchor — safe because we only care about the
+ *  calendar date, never the actual instant. */
+function shiftDateString(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Monday of the week containing the given "yyyy-mm-dd" date. */
+function getWeekStartDateString(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0 = Sun ... 6 = Sat
+  const diffFromMonday = day === 0 ? 6 : day - 1;
+  return shiftDateString(dateStr, -diffFromMonday);
+}
+
+/** First day of the month containing the given "yyyy-mm-dd" date. */
+function getMonthStartDateString(dateStr: string): string {
+  return `${dateStr.slice(0, 7)}-01`;
+}
+
+/**
+ * Resolves a dashboard range type into concrete salon-tz-anchored
+ * start/end instants, plus the "yyyy-mm-dd" boundaries (handy for
+ * echoing back to the filter UI).
+ *
+ * Note: "week" and "month" end at TODAY, not the calendar end of the
+ * week/month — there's no future data to include anyway, and this
+ * keeps the range meaning "from period-start through now".
+ */
+export function getDashboardDateRange(
+  rangeType: DashboardRangeType,
+  customFrom?: string,
+  customTo?: string,
+): { start: Date; end: Date; from: string; to: string } {
+  const today = todayInSalonTz();
+
+  if (rangeType === "custom") {
+    if (!customFrom || !customTo) {
+      throw new Error("Custom range requires both 'from' and 'to' dates");
+    }
+    return {
+      start: startOfDayInSalonTz(customFrom),
+      end: endOfDayInSalonTz(customTo),
+      from: customFrom,
+      to: customTo,
+    };
+  }
+
+  let from: string;
+  const to: string = today;
+
+  switch (rangeType) {
+    case "today":
+      from = today;
+      break;
+    case "week":
+      from = getWeekStartDateString(today);
+      break;
+    case "month":
+    default:
+      from = getMonthStartDateString(today);
+      break;
+  }
+
+  return {
+    start: startOfDayInSalonTz(from),
+    end: endOfDayInSalonTz(to),
+    from,
+    to,
+  };
+}

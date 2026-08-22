@@ -1,19 +1,46 @@
-import {
-  Scissors,
-  Users,
-  UserCheck,
-  CalendarCheck,
-  Banknote,
-  Receipt,
-} from "lucide-react";
+import { Scissors, Users, Banknote, Receipt, FileText } from "lucide-react";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentInvoicesTable from "@/components/dashboard/RecentInvoicesTable";
+import DashboardFilter from "@/components/dashboard/DashboardFilter";
 import { getDashboardStats } from "@/lib/dashboard/actions";
+import { DashboardRangeType } from "@/lib/utils/timezone";
 
-const DashboardPage = async () => {
-  const stats = await getDashboardStats();
+type DashboardPageProps = {
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+};
+
+const VALID_RANGES: DashboardRangeType[] = ["today", "week", "month", "custom"];
+
+const RANGE_LABELS: Record<DashboardRangeType, string> = {
+  today: "today",
+  week: "this week",
+  month: "this month",
+  custom: "the selected range",
+};
+
+const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
+  const params = await searchParams;
+
+  let range = VALID_RANGES.includes(params.range as DashboardRangeType)
+    ? (params.range as DashboardRangeType)
+    : "month";
+
+  // Fall back to month if custom is selected but dates aren't set yet
+  if (range === "custom" && (!params.from || !params.to)) {
+    range = "month";
+  }
+
+  const stats = await getDashboardStats(range, params.from, params.to);
+  const rangeLabel = RANGE_LABELS[range];
 
   const statCards = [
+    {
+      title: "Total Customers",
+      value: stats.totalCustomers,
+      icon: <Users className="h-5 w-5" />,
+      accent: "bg-blue-500",
+      description: `Distinct customers invoiced ${rangeLabel}`,
+    },
     {
       title: "Total Services",
       value: stats.totalServices,
@@ -22,53 +49,42 @@ const DashboardPage = async () => {
       description: "Active services offered",
     },
     {
-      title: "Total Customers",
-      value: stats.totalCustomers,
-      icon: <Users className="h-5 w-5" />,
-      accent: "bg-blue-500",
-      description: "All-time registered customers",
-    },
-    {
-      title: "Today's Customers",
-      value: stats.todaysCustomers,
-      icon: <UserCheck className="h-5 w-5" />,
-      accent: "bg-teal-500",
-      description: "Distinct customers served today",
-    },
-    {
-      title: "Today's Appointments",
-      value: stats.todaysAppointments,
-      icon: <CalendarCheck className="h-5 w-5" />,
+      title: "Total Invoices",
+      value: stats.totalInvoices,
+      icon: <FileText className="h-5 w-5" />,
       accent: "bg-amber-500",
-      description: "Invoices created today",
+      description: `Services billed ${rangeLabel}`,
     },
     {
-      title: "Today's Revenue",
-      value: stats.todaysRevenue,
+      title: "Total Revenue",
+      value: stats.revenue,
       icon: <Banknote className="h-5 w-5" />,
       accent: "bg-green-500",
-      description: "Payments collected today",
-      prefix: `AED `,
+      description: `Payments collected ${rangeLabel}`,
+      prefix: "AED ",
     },
     {
-      title: "Today's Expenses",
-      value: stats.todaysExpense,
+      title: "Total Expenses",
+      value: stats.totalExpenses,
       icon: <Receipt className="h-5 w-5" />,
       accent: "bg-red-500",
-      description: "Expenses recorded today",
+      description: `Expenses recorded ${rangeLabel}`,
       prefix: "AED ",
     },
   ];
 
   return (
     <div className="p-6 space-y-8">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-800">
-          Dashboard
-        </h1>
-        <p className="hidden md:block text-sm text-slate-400 mt-1">
-          Overview of your salon today.
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-800">
+            Dashboard
+          </h1>
+          <p className="hidden md:block text-sm text-slate-400 mt-1">
+            Overview of your salon.
+          </p>
+        </div>
+        <DashboardFilter />
       </div>
 
       <section>
