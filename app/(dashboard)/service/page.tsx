@@ -1,130 +1,120 @@
-import ServiceReportFilters from "@/components/reports/ServiceReportFilters";
-import ServiceReportTable from "@/components/reports/ServiceReportTable";
-import {
-  getServiceReport,
-  getAllServiceNames,
-} from "@/lib/reports/serviceReport";
-import { Wrench, CalendarCheck, Layers, Banknote } from "lucide-react";
+import { Prisma, Service } from "@prisma/client";
+import EmptyState from "@/components/EmptyState";
+import FormContainer from "@/components/FormContainer";
+import Pagination from "@/components/Pagination";
+import Table from "@/components/Table";
+import TableSearch from "@/components/TableSearch";
+import { prisma } from "@/lib/prisma";
+import { ITEM_PER_PAGE } from "@/lib/settings";
 
-type SearchParams = {
-  search?: string;
-  serviceId?: string;
-  from?: string;
-  to?: string;
-};
+type ServiceList = Service;
 
-type Props = {
-  searchParams: Promise<SearchParams>;
-};
+const ServiceListPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | undefined }>;
+}) => {
+  const resolvedSearchParams = await searchParams;
 
-const money = (value: number) =>
-  `AED ${value.toLocaleString("en-AE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const page = resolvedSearchParams.page
+    ? parseInt(resolvedSearchParams.page)
+    : 1;
 
-const ServiceReportPage = async ({ searchParams }: Props) => {
-  const params = await searchParams;
+  const queryParams = { ...resolvedSearchParams };
+  delete queryParams.page;
 
-  const [report, allServices] = await Promise.all([
-    getServiceReport({
-      search: params.search,
-      serviceId: params.serviceId,
-      from: params.from,
-      to: params.to,
+  const p = page ? page : 1;
+
+  const columns = [
+    { header: "Service Name", accessor: "name" },
+    {
+      header: "Description",
+      accessor: "description",
+      className: "hidden md:table-cell",
+    },
+    { header: "Price", accessor: "price" },
+    { header: "Actions", accessor: "actions" },
+  ];
+
+  const renderRow = (item: ServiceList) => (
+    <tr
+      key={item.id}
+      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
+    >
+      <td className="px-2 md:px-0 py-2">{item.name}</td>
+      <td className="px-2 md:px-0 py-2 hidden md:table-cell">
+        {item.description}
+      </td>
+      <td className="px-2 md:px-0 py-2">AED {item.price.toFixed(2)}</td>
+      <td className="px-2 md:px-0 py-2">
+        <div className="flex flex-row items-center gap-2 py-2">
+          <FormContainer table="service" type="update" data={item} />
+          <FormContainer table="service" type="delete" id={item.id} />
+        </div>
+      </td>
+    </tr>
+  );
+
+  const query: Prisma.ServiceWhereInput = {};
+
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value !== undefined) {
+        switch (key) {
+          case "search":
+            query.name = { contains: value, mode: "insensitive" };
+            break;
+        }
+      }
+    }
+  }
+
+  const [data, count] = await prisma.$transaction([
+    prisma.service.findMany({
+      where: query,
+      take: ITEM_PER_PAGE,
+      skip: ITEM_PER_PAGE * (p - 1),
     }),
-    getAllServiceNames(),
+    prisma.service.count({
+      where: query,
+    }),
   ]);
 
-  const hasFilter =
-    Boolean(params.search) ||
-    Boolean(params.serviceId) ||
-    Boolean(params.from) ||
-    Boolean(params.to);
-
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
-      {/* Header */}
-      <div>
-        <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-800">
-          Service Report
-        </h1>
-      </div>
-
-      {/* Filters */}
-      <ServiceReportFilters
-        allServices={allServices}
-        initialSearch={params.search}
-        initialServiceId={params.serviceId}
-        initialFrom={params.from}
-        initialTo={params.to}
-      />
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <SummaryCard
-          label="Service Types"
-          value={report.summary.totalServiceTypes.toString()}
-          icon={<Wrench size={19} />}
-        />
-
-        <SummaryCard
-          label="Bookings"
-          value={report.summary.totalBookings.toString()}
-          icon={<CalendarCheck size={19} />}
-        />
-
-        <SummaryCard
-          label="Qty Sold"
-          value={report.summary.totalQuantity.toString()}
-          icon={<Layers size={19} />}
-        />
-
-        <SummaryCard
-          label="Total Revenue"
-          value={money(report.summary.totalRevenue)}
-          icon={<Banknote size={19} />}
-        />
-      </div>
-
-      {/* Active filter summary */}
-      {hasFilter && (
-        <div className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-700 ring-1 ring-blue-100">
-          Showing service revenue and history based on your selected filters.
+    <div className="flex-1 bg-white p-6 mt-0 space-y-4 md:p-4">
+      {/* ── Top bar ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-800">
+            All Services
+          </h1>
         </div>
+
+        <div className="flex items-center gap-4 lg:self-end">
+          <FormContainer table="service" type="create" />
+        </div>
+
+        <div className="flex items-center gap-4 lg:self-end">
+          <TableSearch />
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      {count === 0 ? (
+        <EmptyState
+          title="No services found"
+          description="Start by adding a new service."
+          imageSrc="/no-data.gif"
+        />
+      ) : (
+        <>
+          <Table columns={columns} renderRow={renderRow} data={data} />
+          <Pagination page={p} count={count} />
+        </>
       )}
-
-      {/* Service history */}
-      <ServiceReportTable
-        services={report.services}
-        selectedServiceId={params.serviceId}
-      />
     </div>
   );
 };
 
-const SummaryCard = ({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) => {
-  return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-gray-100 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500">
-          {icon}
-        </div>
-      </div>
-
-      <p className="mt-4 text-xs font-medium text-gray-400">{label}</p>
-
-      <p className="mt-1 truncate text-lg font-bold text-gray-800">{value}</p>
-    </div>
-  );
-};
-
-export default ServiceReportPage;
+export default ServiceListPage;
