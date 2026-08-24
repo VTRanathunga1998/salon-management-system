@@ -204,6 +204,18 @@ CREATE TABLE "EmployeeService" (
     CONSTRAINT "EmployeeService_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Refund" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "reason" TEXT,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Refund_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
@@ -282,6 +294,9 @@ CREATE INDEX "EmployeeService_employeeId_idx" ON "EmployeeService"("employeeId")
 -- CreateIndex
 CREATE UNIQUE INDEX "EmployeeService_employeeId_serviceId_key" ON "EmployeeService"("employeeId", "serviceId");
 
+-- CreateIndex
+CREATE INDEX "Refund_invoiceId_idx" ON "Refund"("invoiceId");
+
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -329,3 +344,9 @@ ALTER TABLE "EmployeeService" ADD CONSTRAINT "EmployeeService_employeeId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "EmployeeService" ADD CONSTRAINT "EmployeeService_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

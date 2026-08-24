@@ -42,6 +42,9 @@ export async function getDashboardStats(
           gte: start,
           lte: end,
         },
+        status: {
+          notIn: ["REFUNDED", "CANCELLED"],
+        },
       },
       _sum: {
         total: true,

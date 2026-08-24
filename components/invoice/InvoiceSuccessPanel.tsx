@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Banknote, CreditCard, Landmark, Clock } from "lucide-react";
 import { toast } from "react-toastify";
 import InvoicePreview from "@/components/invoice/InvoicePreview";
-import { recordInvoicePayment } from "@/lib/invoices/actions";
+import { recordInvoicePayment, refundInvoice } from "@/lib/invoices/actions";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoiceEmail";
 
 type PaymentMethod = "CASH" | "CARD" | "BANK_TRANSFER" | "CREDIT";
@@ -230,6 +230,25 @@ const InvoiceSuccessPanel = ({
     }
   };
 
+  const [refunding, setRefunding] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundOpen, setRefundOpen] = useState(false);
+
+  const handleRefund = async () => {
+    setRefunding(true);
+    const res = await refundInvoice(current.id, refundReason);
+    setRefunding(false);
+
+    if (!res.success || !res.invoice) {
+      toast.error(res.message || "Failed to refund invoice.");
+      return;
+    }
+
+    setCurrent(res.invoice);
+    setRefundOpen(false);
+    toast.success(res.message || "Invoice refunded.");
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
@@ -374,6 +393,55 @@ const InvoiceSuccessPanel = ({
            Print/Download/Email are only reachable from here.
         ========================================================== */
         <>
+          {!allowPayment && current.status === "PAID" && (
+            <>
+              <div className="rounded-lg bg-green-50 text-green-700 text-sm p-3.5 font-medium">
+                ✓ Fully paid — no further changes can be made to this invoice.
+              </div>
+
+              {!refundOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setRefundOpen(true)}
+                  className="w-full py-2.5 rounded-lg ring-[1.5px] ring-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition cursor-pointer"
+                >
+                  Refund Invoice
+                </button>
+              ) : (
+                <div className="rounded-lg ring-[1.5px] ring-red-100 p-3.5 flex flex-col gap-2.5">
+                  <p className="text-xs text-red-600">
+                    This refunds the full amount (AED{" "}
+                    {Number(current.total).toFixed(2)}) and cannot be undone.
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Reason for refund"
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    className="ring-[1.5px] ring-gray-200 rounded-lg p-2 text-sm focus:outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRefundOpen(false)}
+                      className="flex-1 py-2 rounded-lg ring-[1.5px] ring-gray-200 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRefund}
+                      disabled={refunding}
+                      className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium cursor-pointer"
+                    >
+                      {refunding ? "Refunding…" : "Confirm Refund"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {!allowPayment && current.status === "CANCELLED" && (
             <div className="rounded-lg bg-red-50 text-red-700 text-sm p-3.5 font-medium">
               This invoice was cancelled
@@ -381,9 +449,9 @@ const InvoiceSuccessPanel = ({
             </div>
           )}
 
-          {!allowPayment && current.status !== "CANCELLED" && (
-            <div className="rounded-lg bg-green-50 text-green-700 text-sm p-3.5 font-medium">
-              ✓ Fully paid — no further changes can be made to this invoice.
+          {!allowPayment && current.status === "REFUNDED" && (
+            <div className="rounded-lg bg-gray-100 text-gray-600 text-sm p-3.5 font-medium">
+              This invoice has been refunded.
             </div>
           )}
 
@@ -489,10 +557,9 @@ const InvoiceSuccessPanel = ({
 };
 
 function paidSoFar(invoice: any): number {
-  return (invoice.payments ?? []).reduce(
-    (sum: number, p: any) => sum + Number(p.amount),
-    0,
-  );
+  return (invoice.payments ?? [])
+    .filter((p: any) => p.status === "COMPLETED")
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 }
 
 export default InvoiceSuccessPanel;

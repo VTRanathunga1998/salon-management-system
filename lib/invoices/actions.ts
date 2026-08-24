@@ -357,6 +357,63 @@ export async function deleteInvoice(
   }
 }
 
+export async function refundInvoice(invoiceId: string, reason: string) {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+  });
+
+  if (!invoice) {
+    return { success: false, message: "Invoice not found." };
+  }
+
+  if (invoice.status !== "PAID") {
+    return {
+      success: false,
+      message: "Only fully paid invoices can be refunded.",
+    };
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.refund.create({
+      data: {
+        invoiceId,
+        amount: invoice.total,
+        reason: reason || null,
+        // createdById: currentUserId,
+      },
+    });
+
+    await tx.payment.updateMany({
+      where: { invoiceId, status: "COMPLETED" },
+      data: { status: "REFUNDED" },
+    });
+
+    return tx.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "REFUNDED" },
+      include: {
+        customer: true,
+        payments: true,
+        items: {
+          include: {
+            employees: {
+              include: {
+                employee: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  return {
+    success: true,
+    invoice: serializeData(updated),
+    message: `Invoice ${updated.invoiceNumber} refunded.`,
+  };
+}
+
 // "use server";
 
 // import { Prisma, DiscountType, InvoiceStatus } from "@prisma/client";
