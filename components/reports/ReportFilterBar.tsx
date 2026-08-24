@@ -16,10 +16,7 @@ const presets = [
   "This year",
 ];
 
-// Shifts a "yyyy-mm-dd" date by N days (can be negative), staying anchored
-// to the salon's timezone throughout — avoids the raw UTC-slice bug where
-// `.toISOString().slice(0, 10)` can land on the wrong calendar day
-// depending on time-of-day and server region.
+
 function addDaysToSalonDate(dateStr: string, days: number): string {
   const base = startOfDayInSalonTz(dateStr);
   const shifted = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);

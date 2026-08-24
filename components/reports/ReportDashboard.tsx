@@ -16,6 +16,7 @@ import {
   formatDateInSalonTz,
   toDateInputInSalonTz,
 } from "@/lib/utils/timezone";
+import { Download } from "lucide-react";
 
 const money = (n: number) => {
   const sign = n < 0 ? "-" : "";
@@ -42,7 +43,7 @@ const ReportDashboard = ({
     range,
   } = report;
 
-  const pdfUrl = `/api/reports/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}`;
+  const pdfUrl = `/api/reports/overview/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}`;
 
   // Client-side filter over the already-fetched log — no extra server
   // round-trip needed since the whole range's data is already in memory.
@@ -68,11 +69,13 @@ const ReportDashboard = ({
         <h1 className="text-2xl font-black tracking-tight text-slate-800">
           Reports
         </h1>
+
         <a
           href={pdfUrl}
-          className="text-sm font-medium bg-gray-800 hover:bg-gray-900 text-white rounded-lg px-4 py-2.5 transition cursor-pointer"
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
         >
-          Download PDF Report
+          <Download size={14} />
+          Download PDF
         </a>
       </div>
 

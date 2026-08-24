@@ -20,6 +20,7 @@ import {
   formatDateInSalonTz,
   toDateInputInSalonTz,
 } from "@/lib/utils/timezone";
+import { Download } from "lucide-react";
 
 const money = (n: number) =>
   `AED ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -67,11 +68,13 @@ const ExpenseReportDashboard = ({
         <h1 className="text-2xl font-black tracking-tight text-slate-800">
           Expense Report
         </h1>
+
         <a
           href={pdfUrl}
-          className="text-sm font-medium bg-gray-800 hover:bg-gray-900 text-white rounded-lg px-4 py-2.5 transition cursor-pointer"
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
         >
-          Download PDF Report
+          <Download size={14} />
+          Download PDF
         </a>
       </div>
 

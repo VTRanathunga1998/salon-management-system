@@ -219,7 +219,7 @@ const FormModal = ({
             w-full
             sm:w-[auto]
             min-w-0
-            lg:min-w-[220px]
+            lg:min-w-[320px]
             items-center
             justify-center
             gap-2

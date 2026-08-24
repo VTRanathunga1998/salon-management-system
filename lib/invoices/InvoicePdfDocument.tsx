@@ -539,19 +539,17 @@ const InvoicePdfDocument = ({ invoice }: InvoicePdfProps) => {
             </View>
 
             {hasPayment && (
-              <>
-                <View style={styles.paidRow}>
-                  <Text style={styles.totalsLabel}>Paid</Text>
+              <View style={styles.paidRow}>
+                <Text style={styles.totalsLabel}>Paid</Text>
+                <Text style={styles.totalsValue}>{money(amountPaid)}</Text>
+              </View>
+            )}
 
-                  <Text style={styles.totalsValue}>{money(amountPaid)}</Text>
-                </View>
-
-                <View style={styles.balanceRow}>
-                  <Text style={styles.balanceLabel}>Balance Due</Text>
-
-                  <Text style={styles.balanceValue}>{money(balanceDue)}</Text>
-                </View>
-              </>
+            {balanceDue > 0 && (
+              <View style={styles.balanceRow}>
+                <Text style={styles.balanceLabel}>Balance Due</Text>
+                <Text style={styles.balanceValue}>{money(balanceDue)}</Text>
+              </View>
             )}
           </View>
         </View>

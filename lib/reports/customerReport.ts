@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { InvoiceStatus } from "@prisma/client";
-import { getTodayRangeInSalonTz } from "@/lib/utils/timezone";
 
 export type CustomerReportFilters = {
   search?: string;

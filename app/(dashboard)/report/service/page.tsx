@@ -4,7 +4,7 @@ import {
   getServiceReport,
   getAllServiceNames,
 } from "@/lib/reports/serviceReport";
-import { Wrench, CalendarCheck, Layers, Banknote } from "lucide-react";
+import { Wrench, CalendarCheck, Layers, Banknote, Download } from "lucide-react";
 
 type SearchParams = {
   search?: string;
@@ -45,10 +45,18 @@ const ServiceReportPage = async ({ searchParams }: Props) => {
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       {/* Header */}
-      <div>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-800">
           Service Report
         </h1>
+
+        <a
+          href={`/api/reports/service/pdf?${searchParams.toString()}`}
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+        >
+          <Download size={14} />
+          Download PDF
+        </a>
       </div>
 
       {/* Filters */}

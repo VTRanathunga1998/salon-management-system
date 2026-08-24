@@ -75,6 +75,10 @@ const menuItems = [
             label: "Customer Report",
             href: "/report/customer",
           },
+          {
+            label: "Service Report",
+            href: "/report/service",
+          },
         ],
       },
     ],

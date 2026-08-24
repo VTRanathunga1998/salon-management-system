@@ -16,6 +16,7 @@ import {
   formatDateInSalonTz,
   toDateInputInSalonTz,
 } from "@/lib/utils/timezone";
+import { Download } from "lucide-react";
 
 const money = (n: number) =>
   `AED ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -52,9 +53,10 @@ const EmployeeReportDashboard = ({
         </h1>
         <a
           href={pdfUrl}
-          className="text-sm font-medium bg-gray-800 hover:bg-gray-900 text-white rounded-lg px-4 py-2.5 transition cursor-pointer"
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
         >
-          Download PDF Report
+          <Download size={14} />
+          Download PDF
         </a>
       </div>
 
@@ -119,7 +121,9 @@ const EmployeeReportDashboard = ({
               {employeeStats.map((e) => (
                 <tr key={e.employeeId} className="border-b border-gray-50">
                   <td className="px-2 md:px-0 py-2">{e.name}</td>
-                  <td className="px-2 md:px-0 py-2 text-center">{e.servicesCount}</td>
+                  <td className="px-2 md:px-0 py-2 text-center">
+                    {e.servicesCount}
+                  </td>
                   <td className="px-2 md:px-0 py-2 text-right font-medium">
                     {money(e.revenue)}
                   </td>
