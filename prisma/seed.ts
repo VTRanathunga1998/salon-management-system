@@ -149,13 +149,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Clearing existing data...");
 
-  await prisma.payment.deleteMany();
-  await prisma.invoiceItem.deleteMany();
-  await prisma.invoice.deleteMany();
-  await prisma.service.deleteMany();
-  await prisma.employee.deleteMany();
-  await prisma.customer.deleteMany();
-
   console.log("Seeding services...");
   const serviceDefs = [
     // =========================
