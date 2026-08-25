@@ -6,6 +6,6 @@ export default async function ExpensesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireRole(["OWNER", "MANAGER"]);
+  await requireRole(["ADMIN", "OWNER", "MANAGER"]);
   return <>{children}</>;
 }
