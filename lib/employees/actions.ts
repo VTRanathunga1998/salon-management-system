@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { employeeSchema } from "@/lib/formValidationsSchemas";
+import { requirePermission } from "../auth/guards";
 type ActionState = {
   success: boolean;
   error: boolean;
@@ -15,6 +16,16 @@ export async function createEmployee(
   prevState: ActionState,
   data: unknown,
 ): Promise<ActionState> {
+  try {
+    await requirePermission("employee:manage");
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to manage employees.",
+    };
+  }
+
   try {
     const validated = employeeSchema.parse(data);
 
@@ -69,6 +80,16 @@ export async function updateEmployee(
   prevState: ActionState,
   data: unknown,
 ): Promise<ActionState> {
+  try {
+    await requirePermission("employee:manage");
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to manage employees.",
+    };
+  }
+
   try {
     const validated = employeeSchema.parse(data);
 
@@ -147,6 +168,16 @@ export async function deleteEmployee(
   currentState: CurrentState,
   formData: FormData,
 ): Promise<CurrentState> {
+  try {
+    await requirePermission("employee:manage");
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to manage employees.",
+    };
+  }
+
   const id = formData.get("id") as string;
 
   if (!id) {

@@ -24,15 +24,26 @@ export async function getSessionUser() {
 
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
-    include: { user: { select: { id: true, username: true, role: true } } },
+    include: {
+      user: {
+        select: { id: true, username: true, role: true, isActive: true },
+      },
+    },
   });
 
-  if (!session || session.expiresAt < new Date()) {
+  const isInvalid =
+    !session ||
+    session.expiresAt < new Date() ||
+    !session.user ||
+    !session.user.isActive;
+
+  if (isInvalid) {
     if (session) {
       await prisma.session
         .delete({ where: { id: session.id } })
         .catch(() => {});
     }
+    // Do NOT touch cookies here — this runs inside Server Components too.
     return null;
   }
 

@@ -5,7 +5,6 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSessionCookie = request.cookies.has("session-id");
 
-  // Root path: always redirect somewhere, never render directly
   if (pathname === "/") {
     return NextResponse.redirect(
       new URL(hasSessionCookie ? "/invoice" : "/sign-in", request.url),
@@ -22,7 +21,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/invoice", request.url));
   }
 
-  return NextResponse.next();
+  // NEW — forward the pathname so server components can read it
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

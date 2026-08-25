@@ -306,8 +306,7 @@ export async function deleteCustomer(
       return {
         success: false,
         error: true,
-        message:
-          "Cannot delete this customer — they have invoice records. Consider keeping them for history instead.",
+        message: "Cannot delete this customer — they have invoice records.",
       };
     }
 

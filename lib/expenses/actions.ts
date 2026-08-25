@@ -5,9 +5,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { expenseSchema } from "@/lib/formValidationsSchemas";
 
-import {
-  startOfDayInSalonTz,
-} from "@/lib/utils/timezone";
+import { startOfDayInSalonTz } from "@/lib/utils/timezone";
+import { requirePermission } from "../auth/guards";
 
 type CurrentState = {
   success: boolean;
@@ -17,9 +16,6 @@ type CurrentState = {
 
 /**
  * Convert YYYY-MM-DD to YYYY-MM.
- *
- * The date comes from the salon's local date input,
- * so we intentionally use the selected date directly.
  */
 function getSalaryMonth(date: string) {
   return date.slice(0, 7);
@@ -32,15 +28,23 @@ export async function createExpense(
   prevState: CurrentState,
   data: unknown,
 ): Promise<CurrentState> {
+  try {
+    await requirePermission("expense:create");
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to record expenses.",
+    };
+  }
+
   const parsed = expenseSchema.safeParse(data);
 
   if (!parsed.success) {
     return {
       success: false,
       error: true,
-      message:
-        parsed.error.issues[0]?.message ??
-        "Invalid data.",
+      message: parsed.error.issues[0]?.message ?? "Invalid data.",
     };
   }
 
@@ -52,23 +56,18 @@ export async function createExpense(
      * SALARY BATCH
      * =====================================================
      */
-    if (
-      values.category === "SALARIES"
-    ) {
-      const salaryEntries =
-        values.salaryEntries ?? [];
+    if (values.category === "SALARIES") {
+      const salaryEntries = values.salaryEntries ?? [];
 
       if (salaryEntries.length === 0) {
         return {
           success: false,
           error: true,
-          message:
-            "Add at least one employee salary.",
+          message: "Add at least one employee salary.",
         };
       }
 
-      const salaryMonth =
-        getSalaryMonth(values.date);
+      const salaryMonth = getSalaryMonth(values.date);
 
       /**
        * Extra server-side duplicate protection.
@@ -76,58 +75,41 @@ export async function createExpense(
        * Zod already prevents duplicates inside
        * the submitted batch, but we also check DB.
        */
-      const employeeIds =
-        salaryEntries.map(
-          (entry) => entry.employeeId,
+      const employeeIds = salaryEntries.map((entry) => entry.employeeId);
+
+      const existingSalaries = await prisma.expense.findMany({
+        where: {
+          category: "SALARIES",
+          salaryMonth,
+          employeeId: {
+            in: employeeIds,
+          },
+        },
+        select: {
+          employeeId: true,
+        },
+      });
+
+      if (existingSalaries.length > 0) {
+        const existingIds = new Set(
+          existingSalaries.map((salary) => salary.employeeId),
         );
 
-      const existingSalaries =
-        await prisma.expense.findMany({
+        const employees = await prisma.employee.findMany({
           where: {
-            category: "SALARIES",
-            salaryMonth,
-            employeeId: {
+            id: {
               in: employeeIds,
             },
           },
           select: {
-            employeeId: true,
+            id: true,
+            name: true,
           },
         });
 
-      if (existingSalaries.length > 0) {
-        const existingIds =
-          new Set(
-            existingSalaries.map(
-              (salary) =>
-                salary.employeeId,
-            ),
-          );
-
-        const employees =
-          await prisma.employee.findMany({
-            where: {
-              id: {
-                in: employeeIds,
-              },
-            },
-            select: {
-              id: true,
-              name: true,
-            },
-          });
-
-        const duplicateNames =
-          employees
-            .filter((employee) =>
-              existingIds.has(
-                employee.id,
-              ),
-            )
-            .map(
-              (employee) =>
-                employee.name,
-            );
+        const duplicateNames = employees
+          .filter((employee) => existingIds.has(employee.id))
+          .map((employee) => employee.name);
 
         return {
           success: false,
@@ -145,41 +127,34 @@ export async function createExpense(
        * Verify that all employees actually exist
        * and are active.
        */
-      const employees =
-        await prisma.employee.findMany({
-          where: {
-            id: {
-              in: employeeIds,
-            },
-            isActive: true,
+      const employees = await prisma.employee.findMany({
+        where: {
+          id: {
+            in: employeeIds,
           },
-          select: {
-            id: true,
-            name: true,
-          },
-        });
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
 
-      if (
-        employees.length !==
-        employeeIds.length
-      ) {
+      if (employees.length !== employeeIds.length) {
         return {
           success: false,
           error: true,
-          message:
-            "One or more selected employees are invalid or inactive.",
+          message: "One or more selected employees are invalid or inactive.",
         };
       }
 
       /**
        * Calculate total salary.
        */
-      const totalSalary =
-        salaryEntries.reduce(
-          (sum, entry) =>
-            sum + entry.amount,
-          0,
-        );
+      const totalSalary = salaryEntries.reduce(
+        (sum, entry) => sum + entry.amount,
+        0,
+      );
 
       /**
        * Create ALL salary records atomically.
@@ -187,59 +162,38 @@ export async function createExpense(
        * If one fails, the entire transaction
        * is rolled back.
        */
-      await prisma.$transaction(
-        async (tx) => {
-          for (const entry of salaryEntries) {
-            const employee =
-              employees.find(
-                (e) =>
-                  e.id ===
-                  entry.employeeId,
-              );
+      await prisma.$transaction(async (tx) => {
+        for (const entry of salaryEntries) {
+          const employee = employees.find((e) => e.id === entry.employeeId);
 
-            await tx.expense.create({
-              data: {
-                title:
-                  values.title,
+          await tx.expense.create({
+            data: {
+              title: values.title,
 
-                category:
-                  "SALARIES",
+              category: "SALARIES",
 
-                amount:
-                  entry.amount,
+              amount: entry.amount,
 
-                method:
-                  values.method,
+              method: values.method,
 
-                date:
-                  startOfDayInSalonTz(
-                    values.date,
-                  ),
+              date: startOfDayInSalonTz(values.date),
 
-                notes:
-                  values.notes ||
-                  null,
+              notes: values.notes || null,
 
-                employeeId:
-                  entry.employeeId,
+              employeeId: entry.employeeId,
 
-                salaryMonth,
-              },
-            });
-          }
-        },
-      );
+              salaryMonth,
+            },
+          });
+        }
+      });
 
       return {
         success: true,
         error: false,
         message: `${salaryEntries.length} salary payment${
-          salaryEntries.length === 1
-            ? ""
-            : "s"
-        } recorded. Total: AED ${totalSalary.toFixed(
-          2,
-        )}`,
+          salaryEntries.length === 1 ? "" : "s"
+        } recorded. Total: AED ${totalSalary.toFixed(2)}`,
       };
     }
 
@@ -253,22 +207,15 @@ export async function createExpense(
       data: {
         title: values.title,
 
-        category:
-          values.category,
+        category: values.category,
 
-        amount:
-          values.amount ?? 0,
+        amount: values.amount ?? 0,
 
-        method:
-          values.method,
+        method: values.method,
 
-        date:
-          startOfDayInSalonTz(
-            values.date,
-          ),
+        date: startOfDayInSalonTz(values.date),
 
-        notes:
-          values.notes || null,
+        notes: values.notes || null,
       },
     });
 
@@ -278,10 +225,7 @@ export async function createExpense(
       message: "Expense recorded.",
     };
   } catch (err) {
-    console.error(
-      "[createExpense]",
-      err,
-    );
+    console.error("[createExpense]", err);
 
     /**
      * Prisma unique constraint.
@@ -291,8 +235,7 @@ export async function createExpense(
      * in the same month.
      */
     if (
-      err instanceof
-        Prisma.PrismaClientKnownRequestError &&
+      err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
       return {
@@ -306,8 +249,7 @@ export async function createExpense(
     return {
       success: false,
       error: true,
-      message:
-        "Failed to record expense.",
+      message: "Failed to record expense.",
     };
   }
 }
@@ -321,16 +263,22 @@ export async function updateExpense(
   prevState: CurrentState,
   data: unknown,
 ): Promise<CurrentState> {
-  const parsed =
-    expenseSchema.safeParse(data);
+  try {
+    await requirePermission("expense:update"); // NEW
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to edit expenses.",
+    };
+  }
+  const parsed = expenseSchema.safeParse(data);
 
   if (!parsed.success) {
     return {
       success: false,
       error: true,
-      message:
-        parsed.error.issues[0]?.message ??
-        "Invalid data.",
+      message: parsed.error.issues[0]?.message ?? "Invalid data.",
     };
   }
 
@@ -338,25 +286,22 @@ export async function updateExpense(
     return {
       success: false,
       error: true,
-      message:
-        "Missing expense id.",
+      message: "Missing expense id.",
     };
   }
 
   try {
-    const existing =
-      await prisma.expense.findUnique({
-        where: {
-          id: parsed.data.id,
-        },
-      });
+    const existing = await prisma.expense.findUnique({
+      where: {
+        id: parsed.data.id,
+      },
+    });
 
     if (!existing) {
       return {
         success: false,
         error: true,
-        message:
-          "Expense not found.",
+        message: "Expense not found.",
       };
     }
 
@@ -375,15 +320,10 @@ export async function updateExpense(
      * through this normal expense update.
      */
     if (
-      existing.category ===
-        "SALARIES" ||
-      parsed.data.category ===
-        "SALARIES"
+      existing.category === "SALARIES" ||
+      parsed.data.category === "SALARIES"
     ) {
-      if (
-        existing.category !==
-        "SALARIES"
-      ) {
+      if (existing.category !== "SALARIES") {
         return {
           success: false,
           error: true,
@@ -392,14 +332,11 @@ export async function updateExpense(
         };
       }
 
-      if (
-        !existing.employeeId
-      ) {
+      if (!existing.employeeId) {
         return {
           success: false,
           error: true,
-          message:
-            "Salary expense has no employee assigned.",
+          message: "Salary expense has no employee assigned.",
         };
       }
 
@@ -407,41 +344,32 @@ export async function updateExpense(
        * Salary month is determined by
        * the selected local date.
        */
-      const salaryMonth =
-        getSalaryMonth(
-          parsed.data.date,
-        );
+      const salaryMonth = getSalaryMonth(parsed.data.date);
 
       /**
        * If the date is changed to another month,
        * check whether that employee already
        * has salary in the new month.
        */
-      const duplicate =
-        await prisma.expense.findFirst(
-          {
-            where: {
-              category:
-                "SALARIES",
+      const duplicate = await prisma.expense.findFirst({
+        where: {
+          category: "SALARIES",
 
-              employeeId:
-                existing.employeeId,
+          employeeId: existing.employeeId,
 
-              salaryMonth,
+          salaryMonth,
 
-              NOT: {
-                id: existing.id,
-              },
-            },
+          NOT: {
+            id: existing.id,
           },
-        );
+        },
+      });
 
       if (duplicate) {
         return {
           success: false,
           error: true,
-          message:
-            `Salary already exists for this employee for ${salaryMonth}.`,
+          message: `Salary already exists for this employee for ${salaryMonth}.`,
         };
       }
 
@@ -451,26 +379,17 @@ export async function updateExpense(
         },
 
         data: {
-          title:
-            parsed.data.title,
+          title: parsed.data.title,
 
-          amount:
-            parsed.data.amount ?? 0,
+          amount: parsed.data.amount ?? 0,
 
-          method:
-            parsed.data.method,
+          method: parsed.data.method,
 
-          date:
-            startOfDayInSalonTz(
-              parsed.data.date,
-            ),
+          date: startOfDayInSalonTz(parsed.data.date),
 
-          notes:
-            parsed.data.notes ||
-            null,
+          notes: parsed.data.notes || null,
 
-          category:
-            "SALARIES",
+          category: "SALARIES",
 
           salaryMonth,
         },
@@ -479,8 +398,7 @@ export async function updateExpense(
       return {
         success: true,
         error: false,
-        message:
-          "Salary expense updated.",
+        message: "Salary expense updated.",
       };
     }
 
@@ -496,26 +414,17 @@ export async function updateExpense(
       },
 
       data: {
-        title:
-          parsed.data.title,
+        title: parsed.data.title,
 
-        category:
-          parsed.data.category,
+        category: parsed.data.category,
 
-        amount:
-          parsed.data.amount ?? 0,
+        amount: parsed.data.amount ?? 0,
 
-        method:
-          parsed.data.method,
+        method: parsed.data.method,
 
-        date:
-          startOfDayInSalonTz(
-            parsed.data.date,
-          ),
+        date: startOfDayInSalonTz(parsed.data.date),
 
-        notes:
-          parsed.data.notes ||
-          null,
+        notes: parsed.data.notes || null,
 
         /**
          * Normal expenses must never
@@ -529,18 +438,13 @@ export async function updateExpense(
     return {
       success: true,
       error: false,
-      message:
-        "Expense updated.",
+      message: "Expense updated.",
     };
   } catch (err) {
-    console.error(
-      "[updateExpense]",
-      err,
-    );
+    console.error("[updateExpense]", err);
 
     if (
-      err instanceof
-        Prisma.PrismaClientKnownRequestError &&
+      err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
       return {
@@ -554,8 +458,7 @@ export async function updateExpense(
     return {
       success: false,
       error: true,
-      message:
-        "Failed to update expense.",
+      message: "Failed to update expense.",
     };
   }
 }
@@ -569,15 +472,23 @@ export async function deleteExpense(
   prevState: CurrentState,
   formData: FormData,
 ): Promise<CurrentState> {
-  const id =
-    formData.get("id") as string;
+  try {
+    await requirePermission("expense:delete"); // NEW
+  } catch {
+    return {
+      success: false,
+      error: true,
+      message: "You don't have permission to delete expenses.",
+    };
+  }
+
+  const id = formData.get("id") as string;
 
   if (!id) {
     return {
       success: false,
       error: true,
-      message:
-        "Missing expense id.",
+      message: "Missing expense id.",
     };
   }
 
@@ -589,20 +500,15 @@ export async function deleteExpense(
     return {
       success: true,
       error: false,
-      message:
-        "Expense deleted.",
+      message: "Expense deleted.",
     };
   } catch (err) {
-    console.error(
-      "[deleteExpense]",
-      err,
-    );
+    console.error("[deleteExpense]", err);
 
     return {
       success: false,
       error: true,
-      message:
-        "Failed to delete expense.",
+      message: "Failed to delete expense.",
     };
   }
 }

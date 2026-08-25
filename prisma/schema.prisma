@@ -15,6 +15,7 @@ enum AppointmentStatus {
 }
 
 enum UserRole {
+  ADMIN
   OWNER
   MANAGER
   RECEPTIONIST
@@ -63,10 +64,12 @@ model User {
   password String
   role     UserRole @default(OWNER)
 
+  isActive Boolean  @default(true) // NEW — soft-delete flag, same pattern as Employee/Service
+
   createdInvoices Invoice[] @relation("InvoiceCreatedBy")
   createdExpenses Expense[] @relation("ExpenseCreatedBy")
   sessions        Session[]
-  createdRefunds Refund[] @relation("RefundCreatedBy")
+  createdRefunds  Refund[] @relation("RefundCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

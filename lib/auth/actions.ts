@@ -34,11 +34,11 @@ export async function signIn(
     where: { username: parsed.data.username },
   });
 
-  if (!user) {
+  if (!user || !user.isActive) {
     return {
       success: false,
       error: true,
-      message: "Invalid username or password.",
+      message: "Invalid username or password.", 
     };
   }
 
