@@ -5,6 +5,6 @@ export default async function ReportLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireRole(["OWNER"]);
+  await requireRole(["OWNER", "ADMIN"]);
   return <>{children}</>;
 }
