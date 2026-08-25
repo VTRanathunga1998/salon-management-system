@@ -314,7 +314,7 @@ const InvoicePreview = ({
                   <span>{money(amountPaid)}</span>
                 </div>
                 <div
-                  className={`flex justify-between font-bold px-3 py-2 rounded-md mt-1 ${
+                  className={`flex justify-between font-bold px-1 py-2 rounded-md mt-1 ${
                     isSettled
                       ? "bg-green-50 text-green-700"
                       : "bg-amber-50 text-amber-700"
