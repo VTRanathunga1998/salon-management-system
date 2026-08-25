@@ -129,16 +129,6 @@ function getMonthStartDateString(dateStr: string): string {
   return `${dateStr.slice(0, 7)}-01`;
 }
 
-/**
- * Resolves a dashboard range type into concrete salon-tz-anchored
- * start/end instants, plus the "yyyy-mm-dd" boundaries (handy for
- * echoing back to the filter UI).
- *
- * Note: "week" and "month" end at TODAY, not the calendar end of the
- * week/month — there's no future data to include anyway, and this
- * keeps the range meaning "from period-start through now".
- */
-
 export function getDashboardDateRange(
   rangeType: DashboardRangeType,
   customFrom?: string,

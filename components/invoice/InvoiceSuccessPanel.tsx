@@ -56,7 +56,7 @@ const InvoiceSuccessPanel = ({
   // const [paymentAmount, setPaymentAmount] = useState<string>(
   //   Math.max(Number(invoice.total) - paidSoFar(invoice), 0).toFixed(2),
   // );
-  const [paymentAmount, setPaymentAmount] = useState<string>("0.00");
+  const [paymentAmount, setPaymentAmount] = useState<string>("0");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [finishing, setFinishing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -325,12 +325,13 @@ const InvoiceSuccessPanel = ({
               value={paymentAmount}
               disabled={isCredit}
               onChange={(e) => setPaymentAmount(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
               className={`w-40 text-right rounded-lg px-3 py-2 text-sm focus:outline-none ${
                 isCredit
                   ? "ring-[1.5px] ring-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
                   : "ring-[1.5px] ring-gray-200"
               }`}
-              placeholder="0.00"
+              placeholder="0"
             />
           </div>
 
