@@ -16,12 +16,6 @@ function firstDayOfCurrentMonthInSalonTz(): string {
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
-/**
- * Validate a yyyy-mm-dd string.
- *
- * We intentionally don't use `new Date("yyyy-mm-dd")`
- * because date-only parsing can introduce timezone confusion.
- */
 function isValidDateString(value: string | undefined): value is string {
   if (!value) return false;
 
@@ -39,31 +33,22 @@ const ExpenseReportPage = async ({
 }) => {
   const params = await searchParams;
 
-  // ─────────────────────────────────────────────
   // Default range = current month in salon timezone
-  // ─────────────────────────────────────────────
-
   const defaultFrom = firstDayOfCurrentMonthInSalonTz();
   const defaultTo = todayInSalonTz();
 
-  // ─────────────────────────────────────────────
   // Get requested dates
-  // ─────────────────────────────────────────────
 
   const fromDate = isValidDateString(params.from) ? params.from : defaultFrom;
 
   const toDate = isValidDateString(params.to) ? params.to : defaultTo;
 
-  // ─────────────────────────────────────────────
   // Convert salon dates → absolute UTC instants
-  // ─────────────────────────────────────────────
 
   const from = startOfDayInSalonTz(fromDate);
   const to = endOfDayInSalonTz(toDate);
 
-  // ─────────────────────────────────────────────
   // Category
-  // ─────────────────────────────────────────────
 
   const category =
     params.category && params.category !== "ALL"
@@ -74,9 +59,7 @@ const ExpenseReportPage = async ({
         : undefined
       : undefined;
 
-  // ─────────────────────────────────────────────
   // Get report
-  // ─────────────────────────────────────────────
 
   const report = await getExpenseReportData({
     from,

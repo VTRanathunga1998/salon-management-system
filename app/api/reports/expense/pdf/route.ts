@@ -35,7 +35,6 @@ export async function GET(req: NextRequest) {
   const toParam = searchParams.get("to");
   const categoryParam = searchParams.get("category") ?? undefined;
 
-  // CHANGED: was `new Date(fromParam)` + `to.setHours(...)` — server-local,
   // not salon-local. Now anchored explicitly via timezone.ts.
   const fromDate = isValidDateString(fromParam)
     ? fromParam
@@ -51,7 +50,6 @@ export async function GET(req: NextRequest) {
 
   const report = await getExpenseReportData({ from, to, category });
 
-  // CHANGED: was `from.toISOString().slice(0, 10)` — pure UTC.
   const fromLabel = fromDate;
   const toLabel = toDate;
 

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import type { CustomerReportData } from "@/lib/reports/customerReport";
+import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type Props = {
   customers: CustomerReportData["customers"];
@@ -22,14 +23,6 @@ const money = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-
-const formatDate = (value: string) => {
-  return new Intl.DateTimeFormat("en-AE", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(new Date(value));
-};
 
 const statusStyle: Record<string, string> = {
   ISSUED: "bg-yellow-50 text-yellow-700",
@@ -184,7 +177,7 @@ const CustomerReportTable = ({ customers }: Props) => {
                               </p>
 
                               <p className="text-xs text-gray-400">
-                                {formatDate(invoice.date)}
+                                {formatDateInSalonTz(invoice.date)}
                               </p>
                             </div>
 

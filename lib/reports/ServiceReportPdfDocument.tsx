@@ -1,6 +1,3 @@
-// lib/reports/ServiceReportPdfDocument.tsx
-
-import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ServiceReportData } from "./serviceReport";
 

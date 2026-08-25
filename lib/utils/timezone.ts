@@ -138,6 +138,7 @@ function getMonthStartDateString(dateStr: string): string {
  * week/month — there's no future data to include anyway, and this
  * keeps the range meaning "from period-start through now".
  */
+
 export function getDashboardDateRange(
   rangeType: DashboardRangeType,
   customFrom?: string,

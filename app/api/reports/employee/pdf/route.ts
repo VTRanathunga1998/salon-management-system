@@ -25,8 +25,6 @@ export async function GET(req: NextRequest) {
   const toParam = searchParams.get("to");
   const employeeId = searchParams.get("employeeId") ?? undefined;
 
-  // CHANGED: was `new Date(fromParam)` + `to.setHours(...)` — both operate
-  // in server-local time, not the salon's timezone. Now anchored explicitly.
   const fromDate = isValidDateString(fromParam)
     ? fromParam
     : firstDayOfCurrentMonthInSalonTz();

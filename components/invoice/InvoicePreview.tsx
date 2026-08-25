@@ -10,7 +10,7 @@ export interface InvoicePreviewItem {
 }
 
 export interface InvoicePreviewProps {
-  invoiceNumber?: string; // undefined while still a draft, before creation
+  invoiceNumber?: string; 
   status?: string;
   date?: Date;
   customer: {

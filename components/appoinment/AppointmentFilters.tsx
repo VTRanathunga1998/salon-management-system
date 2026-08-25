@@ -1,8 +1,8 @@
 "use client";
 
+import { todayInSalonTz } from "@/lib/utils/timezone";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { Calendar } from "lucide-react";
 
 type Service = { id: string; name: string };
 
@@ -22,14 +22,14 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
       if (value) params.set(key, value);
       else params.delete(key);
     }
-    params.delete("page"); // reset pagination whenever filters change
+    params.delete("page");
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
   }
 
   function handleToday() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInSalonTz();
     updateParams({ from: today, to: today });
   }
 
@@ -82,16 +82,6 @@ const AppointmentFilters = ({ services }: { services: Service[] }) => {
           Clear filters
         </button>
       )}
-      
-      {/* <button
-        type="button"
-        disabled
-        title="Calendar view — coming soon"
-        className="flex items-center gap-1.5 text-xs font-medium text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-md px-3 py-2 cursor-not-allowed whitespace-nowrap md:ml-auto"
-      >
-        <Calendar className="h-3.5 w-3.5" />
-        Calendar view
-      </button> */}
     </div>
   );
 };

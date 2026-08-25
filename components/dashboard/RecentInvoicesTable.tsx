@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InvoiceStatus } from "@prisma/client";
 import StatusBadge from "@/components/StatusBadge";
+import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type RecentInvoice = {
   id: string;
@@ -71,7 +72,7 @@ const RecentInvoicesTable = ({ invoices }: { invoices: RecentInvoice[] }) => {
                     <StatusBadge status={invoice.status} />
                   </td>
                   <td className="py-3 pr-4 text-slate-400 whitespace-nowrap">
-                    {new Date(invoice.createdAt).toLocaleDateString()}
+                    {formatDateInSalonTz(invoice.createdAt)}
                   </td>
                 </tr>
               ))}
