@@ -53,9 +53,6 @@ const InvoiceSuccessPanel = ({
   allowPayment?: boolean;
 }) => {
   const [current, setCurrent] = useState(invoice);
-  // const [paymentAmount, setPaymentAmount] = useState<string>(
-  //   Math.max(Number(invoice.total) - paidSoFar(invoice), 0).toFixed(2),
-  // );
   const [paymentAmount, setPaymentAmount] = useState<string>("0");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [finishing, setFinishing] = useState(false);
@@ -90,25 +87,38 @@ const InvoiceSuccessPanel = ({
   const isCredit = paymentMethod === "CREDIT";
   const enteredAmount = Number(paymentAmount) || 0;
 
-  // Cash / Card / Bank Transfer always settle the invoice in full — the
-  // cashier can't record less than what's owed for these methods. Credit
-  // never applies any payment at all; the input is locked and nothing is
-  // received.
-  const appliedAmount = isCredit ? 0 : balanceDue;
+  // Whatever is entered, up to the balance due, gets applied to the
+  // invoice. Anything entered beyond the balance due is change handed
+  // back to the customer. Credit applies nothing at all — the input is
+  // locked and nothing is received.
+  const appliedAmount = isCredit ? 0 : Math.min(enteredAmount, balanceDue);
+  const changeAmount = isCredit ? 0 : Math.max(enteredAmount - balanceDue, 0);
+  const remainingAfterPayment = isCredit
+    ? balanceDue
+    : Math.max(balanceDue - appliedAmount, 0);
   const projectedTotalPaid = amountPaid + appliedAmount;
 
-  // A single "Balance" figure whose meaning flips with the method:
-  // - Cash/Card/Bank Transfer: money to hand BACK to the customer
-  //   (only non-zero if they gave more than the total owed).
-  // - Credit: money still owed (nothing was collected).
+  // A single "Balance" figure whose meaning flips depending on context:
+  // - Credit: nothing collected, full balance still owed.
+  // - Overpayment: change to hand back to the customer.
+  // - Partial or exact payment: what's still owed after this payment
+  //   (zero when the payment fully settles it).
   const balanceValue = isCredit
     ? balanceDue
-    : Math.max(enteredAmount - balanceDue, 0);
-  const balanceLabel = isCredit ? "Balance Due" : "Balance";
+    : changeAmount > 0
+      ? changeAmount
+      : remainingAfterPayment;
+  const balanceLabel = isCredit
+    ? "Balance Due"
+    : changeAmount > 0
+      ? "Change"
+      : remainingAfterPayment > 0
+        ? "Remaining Balance"
+        : "Balance";
 
-  // For Cash/Card/Bank Transfer, the entered amount must cover the full
-  // balance due — anything less isn't a valid state for these methods.
-  const isAmountTooLow = !isCredit && enteredAmount < balanceDue;
+  // Only real guard for Cash/Card/Bank Transfer: an amount must actually
+  // be entered. Partial amounts are valid and expected.
+  const isAmountInvalid = !isCredit && enteredAmount <= 0;
 
   let resultingStatusLabel: string;
   let resultingStatusClasses: string;
@@ -118,12 +128,14 @@ const InvoiceSuccessPanel = ({
     resultingStatusLabel = "Issued (Credit)";
     resultingStatusClasses = "bg-amber-50 text-amber-700";
     liveStatus = "ISSUED";
-  } else {
-    // Cash/Card/Bank Transfer always fully settle the invoice once a
-    // valid (>= balance due) amount is entered.
+  } else if (projectedTotalPaid >= Number(current.total)) {
     resultingStatusLabel = "Paid";
     resultingStatusClasses = "bg-emerald-50 text-emerald-700";
     liveStatus = "PAID";
+  } else {
+    resultingStatusLabel = "Partially Paid";
+    resultingStatusClasses = "bg-blue-50 text-blue-700";
+    liveStatus = "PARTIALLY_PAID";
   }
 
   // Only project a live status during the payment step — once the
@@ -148,10 +160,8 @@ const InvoiceSuccessPanel = ({
       return;
     }
 
-    if (isAmountTooLow) {
-      setPaymentError(
-        `Amount received cannot be less than the balance due (AED ${balanceDue.toFixed(2)}).`,
-      );
+    if (isAmountInvalid) {
+      setPaymentError("Enter an amount greater than zero.");
       return;
     }
 
@@ -181,6 +191,8 @@ const InvoiceSuccessPanel = ({
       toast.success(
         `Payment recorded. Change due: AED ${res.change.toFixed(2)}`,
       );
+    } else if (res.invoice.status === "PARTIALLY_PAID") {
+      toast.success("Partial payment recorded.");
     } else {
       toast.success("Payment recorded.");
     }
@@ -321,7 +333,7 @@ const InvoiceSuccessPanel = ({
             <input
               type="number"
               step="1"
-              min={isCredit ? undefined : balanceDue}
+              min={isCredit ? undefined : 0}
               value={paymentAmount}
               disabled={isCredit}
               onChange={(e) => setPaymentAmount(e.target.value)}
@@ -336,13 +348,22 @@ const InvoiceSuccessPanel = ({
           </div>
 
           <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Total</span>
+            <span className="text-sm text-gray-600">
+              AED {balanceDue.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">{balanceLabel}</span>
             <span
               className={`text-base font-semibold ${
                 isCredit
                   ? "text-amber-600"
                   : balanceValue > 0
-                    ? "text-blue-600"
+                    ? changeAmount > 0
+                      ? "text-blue-600"
+                      : "text-orange-600"
                     : "text-emerald-600"
               }`}
             >
@@ -350,10 +371,10 @@ const InvoiceSuccessPanel = ({
             </span>
           </div>
 
-          {isAmountTooLow && (
-            <p className="text-xs text-red-500">
-              Amount received cannot be less than the balance due (AED{" "}
-              {balanceDue.toFixed(2)}).
+          {!isCredit && enteredAmount > 0 && enteredAmount < balanceDue && (
+            <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2.5">
+              This is a partial payment — AED {remainingAfterPayment.toFixed(2)}{" "}
+              will remain due after this payment.
             </p>
           )}
 
@@ -378,7 +399,7 @@ const InvoiceSuccessPanel = ({
           <button
             type="button"
             onClick={handleConfirmPayment}
-            disabled={finishing || (!isCredit && isAmountTooLow)}
+            disabled={finishing || (!isCredit && isAmountInvalid)}
             className="w-full py-2.5 rounded-lg bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white text-sm font-medium transition cursor-pointer"
           >
             {finishing
@@ -390,8 +411,9 @@ const InvoiceSuccessPanel = ({
         </div>
       ) : (
         /* =========================================================
-           STEP 2 — Payment is settled (or this is a read-only view).
-           Print/Download/Email are only reachable from here.
+           STEP 2 — Payment is settled (or partially settled / on
+           credit), or this is a read-only view. Print/Download/Email
+           are only reachable from here.
         ========================================================== */
         <>
           {!allowPayment && current.status === "PAID" && (
@@ -462,12 +484,16 @@ const InvoiceSuccessPanel = ({
             </div>
           )}
 
-          {allowPayment && current.status === "ISSUED" && balanceDue > 0 && (
-            <div className="rounded-lg bg-amber-50 text-amber-700 text-sm p-3.5 font-medium">
-              Issued on credit — balance of AED {balanceDue.toFixed(2)} still
-              owed.
-            </div>
-          )}
+          {allowPayment &&
+            (current.status === "ISSUED" ||
+              current.status === "PARTIALLY_PAID") &&
+            balanceDue > 0 && (
+              <div className="rounded-lg bg-amber-50 text-amber-700 text-sm p-3.5 font-medium">
+                {current.status === "PARTIALLY_PAID"
+                  ? `Partially paid — balance of AED ${balanceDue.toFixed(2)} still owed.`
+                  : `Issued on credit — balance of AED ${balanceDue.toFixed(2)} still owed.`}
+              </div>
+            )}
 
           {lastChange !== null && lastChange > 0 && (
             <div className="rounded-lg bg-amber-50 text-amber-700 text-sm p-3 font-medium">
@@ -475,7 +501,7 @@ const InvoiceSuccessPanel = ({
             </div>
           )}
 
-          {/* Print / Download / Email — only reachable once payment is settled */}
+          {/* Print / Download / Email — only reachable once this payment step is settled */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-3">
               <button
@@ -543,6 +569,16 @@ const InvoiceSuccessPanel = ({
               </p>
             )}
           </div>
+
+          {allowPayment && current.status === "PARTIALLY_PAID" && (
+            <button
+              type="button"
+              onClick={() => setPaymentCompleted(false)}
+              className="w-full py-2.5 rounded-lg ring-[1.5px] ring-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-50 transition cursor-pointer"
+            >
+              Collect Another Payment
+            </button>
+          )}
 
           <button
             type="button"

@@ -272,11 +272,13 @@ model Payment {
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  amount Decimal       @db.Decimal(10, 2)
+  amount         Decimal       @db.Decimal(10, 2) // applied to the invoice balance (revenue)
+  amountTendered Decimal       @db.Decimal(10, 2) // what the customer actually handed over
+  changeGiven    Decimal       @default(0) @db.Decimal(10, 2) // amountTendered - amount
+
   method PaymentMethod
   status PaymentStatus @default(COMPLETED)
 
-  // For card/bank payments - useful for reconciliation and preventing duplicates
   reference String?
 
   paidAt DateTime @default(now())

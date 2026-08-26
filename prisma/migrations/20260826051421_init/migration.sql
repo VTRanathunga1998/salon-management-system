@@ -170,6 +170,8 @@ CREATE TABLE "Payment" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
+    "amountTendered" DECIMAL(10,2) NOT NULL,
+    "changeGiven" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "method" "PaymentMethod" NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'COMPLETED',
     "reference" TEXT,
