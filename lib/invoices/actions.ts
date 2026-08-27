@@ -12,6 +12,11 @@ type CurrentState = {
   invoice?: any;
 };
 
+// Explicit options for every interactive transaction below.
+// maxWait: how long to wait for a free connection from the pool.
+// timeout: how long the transaction itself is allowed to run.
+const TX_OPTS = { maxWait: 10000, timeout: 15000 };
+
 async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
   const seriesKey = new Date().getFullYear().toString();
   const counter = await tx.invoiceCounter.upsert({
@@ -22,15 +27,22 @@ async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
   return `INV-${seriesKey}-${counter.lastNumber.toString().padStart(6, "0")}`;
 }
 
-async function resolveItemsAndTotals(
-  tx: Prisma.TransactionClient,
+/**
+ * Pulls current service data and computes line items + totals.
+ * Deliberately takes `prisma` (not `tx`) — this is a read-only lookup
+ * against a slow-changing catalog table, so it doesn't need to be
+ * inside the write transaction. Keeping it out shortens transaction
+ * time significantly and avoids Prisma's interactive-transaction
+ * timeout on slower connections.
+ */
+async function computeItemsAndTotals(
   items: InvoiceSchema["items"],
   discountType: DiscountType,
   discountValue: number,
   taxRate: number,
 ) {
   const serviceIds = [...new Set(items.map((i) => i.serviceId))];
-  const services = await tx.service.findMany({
+  const services = await prisma.service.findMany({
     where: { id: { in: serviceIds } },
   });
   const serviceMap = new Map(services.map((s) => [s.id, s]));
@@ -40,9 +52,6 @@ async function resolveItemsAndTotals(
     if (!service)
       throw new Error("One of the selected services no longer exists.");
 
-    // A custom price overrides the catalog price for this line only —
-    // the catalog itself is untouched. Falls back to the service's
-    // current price when no override was provided.
     const unitPrice =
       item.customPrice !== undefined && item.customPrice !== null
         ? new Prisma.Decimal(item.customPrice)
@@ -90,16 +99,18 @@ export async function createInvoice(
   data: InvoiceSchema,
 ): Promise<CurrentState> {
   try {
-    const invoice = await prisma.$transaction(async (tx) => {
-      const { itemsData, subtotal, discountTotal, taxTotal, total } =
-        await resolveItemsAndTotals(
-          tx,
-          data.items,
-          data.discountType,
-          data.discountValue,
-          data.taxRate,
-        );
+    // Read-only + pure computation happens before we ever open a transaction.
+    const { itemsData, subtotal, discountTotal, taxTotal, total } =
+      await computeItemsAndTotals(
+        data.items,
+        data.discountType,
+        data.discountValue,
+        data.taxRate,
+      );
 
+    // The transaction now only does the two writes that must be atomic:
+    // reserving the invoice number and creating the invoice.
+    const invoice = await prisma.$transaction(async (tx) => {
       const invoiceNumber = await getNextInvoiceNumber(tx);
 
       return tx.invoice.create({
@@ -119,7 +130,7 @@ export async function createInvoice(
         },
         include: invoiceInclude,
       });
-    });
+    }, TX_OPTS);
 
     return {
       success: true,
@@ -143,11 +154,55 @@ export async function updateInvoice(
     return { success: false, error: true, message: "Missing invoice id." };
 
   try {
+    // Fast fail before doing any real work or opening a transaction.
+    const precheck = await prisma.invoice.findUniqueOrThrow({
+      where: { id: data.id },
+    });
+    if (precheck.status === "PAID") {
+      throw new Error(
+        "This invoice is fully paid and can't be edited. You can still print, download, or email it.",
+      );
+    }
+    if (precheck.status === "CANCELLED") {
+      throw new Error("This invoice has been cancelled and can't be edited.");
+    }
+
+    // Cancellation path — single write, no need for items/totals at all.
+    if (data.status === "CANCELLED") {
+      const invoice = await prisma.invoice.update({
+        where: { id: data.id },
+        data: {
+          status: InvoiceStatus.CANCELLED,
+          cancelledAt: new Date(),
+          cancelReason: data.cancelReason || null,
+        },
+        include: invoiceInclude,
+      });
+
+      return {
+        success: true,
+        error: false,
+        message: "Invoice updated.",
+        invoice: serializeData(invoice),
+      };
+    }
+
+    // Read-only + pure computation happens before we open a transaction.
+    const { itemsData, subtotal, discountTotal, taxTotal, total } =
+      await computeItemsAndTotals(
+        data.items,
+        data.discountType,
+        data.discountValue,
+        data.taxRate,
+      );
+
     const invoice = await prisma.$transaction(async (tx) => {
+      // Re-check status inside the transaction in case it changed between
+      // the precheck above and now (e.g. a payment or cancellation landed
+      // concurrently).
       const existing = await tx.invoice.findUniqueOrThrow({
         where: { id: data.id },
       });
-
       if (existing.status === "PAID") {
         throw new Error(
           "This invoice is fully paid and can't be edited. You can still print, download, or email it.",
@@ -157,33 +212,7 @@ export async function updateInvoice(
         throw new Error("This invoice has been cancelled and can't be edited.");
       }
 
-      // Cancellation is its own path — don't touch items/totals at all.
-      if (data.status === "CANCELLED") {
-        return tx.invoice.update({
-          where: { id: data.id },
-          data: {
-            status: InvoiceStatus.CANCELLED,
-            cancelledAt: new Date(),
-            cancelReason: data.cancelReason || null,
-          },
-          include: invoiceInclude,
-        });
-      }
-
-      const { itemsData, subtotal, discountTotal, taxTotal, total } =
-        await resolveItemsAndTotals(
-          tx,
-          data.items,
-          data.discountType,
-          data.discountValue,
-          data.taxRate,
-        );
-
-      // Replace items wholesale, then recompute status against what's
-      // already been paid — adding services to a partially-paid invoice
-      // can push it back from PARTIALLY_PAID to ISSUED-equivalent balance,
-      // or a reduction could tip it over into fully PAID.
-      // NOTE: deleteMany on InvoiceItem cascades to InvoiceItemEmployee too
+      // deleteMany on InvoiceItem cascades to InvoiceItemEmployee
       // (onDelete: Cascade on that relation), so no separate cleanup needed.
       await tx.invoiceItem.deleteMany({ where: { invoiceId: data.id } });
 
@@ -203,8 +232,7 @@ export async function updateInvoice(
         where: { id: data.id },
         data: {
           // customerId intentionally omitted — locked once an invoice
-          // exists, regardless of what the client sends. Enforced here,
-          // not just in the UI, since the UI alone can't be trusted.
+          // exists, regardless of what the client sends.
           subtotal,
           discountType: data.discountType,
           discountValue: data.discountValue,
@@ -218,7 +246,7 @@ export async function updateInvoice(
         },
         include: invoiceInclude,
       });
-    });
+    }, TX_OPTS);
 
     return {
       success: true,
@@ -324,7 +352,7 @@ export async function recordInvoicePayment(
         data: { status: newStatus },
         include: invoiceInclude,
       });
-    });
+    }, TX_OPTS);
 
     return {
       success: true,
@@ -418,7 +446,7 @@ export async function refundInvoice(invoiceId: string, reason: string) {
         },
       },
     });
-  });
+  }, TX_OPTS);
 
   return {
     success: true,
