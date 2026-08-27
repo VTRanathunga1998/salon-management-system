@@ -1,5 +1,0 @@
-[build]
-  command = "npm run build"
-
-[build.environment]
-  NPM_FLAGS = "--production=false"
