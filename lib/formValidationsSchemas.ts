@@ -33,6 +33,8 @@ export const invoiceSchema = z
 
     customerId: z.string().min(1, { message: "Customer is required!" }),
 
+    appointmentId: z.string().optional(),
+
     items: z
       .array(invoiceItemSchema)
       .min(1, { message: "Add at least one service!" }),

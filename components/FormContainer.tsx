@@ -9,7 +9,7 @@ export type FormContainerProps = {
     | "service"
     | "appointment"
     | "expense";
-  type: "create" | "update" | "delete";
+  type: "create" | "update" | "delete" | "convert";
   data?: any;
   id?: number | string;
 };
@@ -30,15 +30,12 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           prisma.employee.findMany({
             where:
               type === "update" && data?.items?.length
-                ? {} // show all when editing so previously-assigned (now inactive) staff still appear
+                ? {}
                 : { isActive: true },
             select: {
               id: true,
               name: true,
               isActive: true,
-              // NEW — which services this employee is qualified to
-              // perform, so InvoiceForm can filter the staff picker
-              // per line item.
               qualifiedServices: { select: { serviceId: true } },
             },
             orderBy: { name: "asc" },
@@ -55,8 +52,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         relatedData = {
           customers,
-          // Reshape into a flat array of ids — easier for the client
-          // component to filter against than the nested join shape.
           employees: employees.map((e) => ({
             id: e.id,
             name: e.name,
@@ -65,6 +60,53 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           })),
           services: services.map((s) => ({ ...s, price: Number(s.price) })),
         };
+
+        // NEW — build invoice seed data from an appointment. Runs after
+        // relatedData is assembled since it doesn't need it, only needs
+        // the appointment itself.
+        if (type === "convert") {
+          const appointmentId = data?.appointmentId ?? id;
+          if (!appointmentId) {
+            console.warn(
+              "[FormContainer] convert->invoice missing appointmentId",
+            );
+            return null;
+          }
+
+          const appointment = await prisma.appointment.findUnique({
+            where: { id: String(appointmentId) },
+            include: {
+              customer: { select: { id: true } },
+              services: { select: { serviceId: true, employeeId: true } },
+            },
+          });
+
+          if (!appointment) {
+            console.warn(
+              "[FormContainer] convert->invoice appointment not found",
+            );
+            return null;
+          }
+          if (
+            appointment.status === "CANCELLED" ||
+            appointment.status === "COMPLETED"
+          ) {
+            // Already converted / cancelled — don't render a button that
+            // would just fail on submit.
+            return null;
+          }
+
+          data = {
+            customerId: appointment.customer.id,
+            appointmentId: appointment.id,
+            items: appointment.services.map((s) => ({
+              serviceId: s.serviceId,
+              employeeIds: s.employeeId ? [s.employeeId] : [],
+              quantity: 1,
+              customPrice: undefined,
+            })),
+          };
+        }
         break;
       }
       case "appointment": {
@@ -109,7 +151,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         break;
       }
-
       case "employee": {
         const services = await prisma.service.findMany({
           where:
@@ -136,7 +177,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         break;
       }
-
       case "expense": {
         const employees = await prisma.employee.findMany({
           where: {

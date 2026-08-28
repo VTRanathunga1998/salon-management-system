@@ -76,6 +76,12 @@ const AppointmentListPage = async ({
         <div className="flex flex-row items-center gap-2 py-2">
           <FormContainer table="appointment" type="update" data={item} />
           <FormContainer table="appointment" type="delete" id={item.id} />
+
+          <FormContainer
+            table="invoice"
+            type="convert"
+            data={{ appointmentId: item.id }}
+          />
         </div>
       </td>
     </tr>

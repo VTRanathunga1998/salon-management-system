@@ -89,7 +89,6 @@ export async function createInvoice(
   data: InvoiceSchema,
 ): Promise<CurrentState> {
   try {
-    // Read-only + pure computation happens before we ever open a transaction.
     const { itemsData, subtotal, discountTotal, taxTotal, total } =
       await computeItemsAndTotals(
         data.items,
@@ -98,12 +97,10 @@ export async function createInvoice(
         data.taxRate,
       );
 
-    // The transaction now only does the two writes that must be atomic:
-    // reserving the invoice number and creating the invoice.
     const invoice = await prisma.$transaction(async (tx) => {
       const invoiceNumber = await getNextInvoiceNumber(tx);
 
-      return tx.invoice.create({
+      const created = await tx.invoice.create({
         data: {
           invoiceNumber,
           customerId: data.customerId,
@@ -120,6 +117,21 @@ export async function createInvoice(
         },
         include: invoiceInclude,
       });
+
+      if (data.appointmentId) {
+        const appt = await tx.appointment.findUniqueOrThrow({
+          where: { id: data.appointmentId },
+        });
+        if (appt.status === "CANCELLED") {
+          throw new Error("Can't invoice a cancelled appointment.");
+        }
+        await tx.appointment.update({
+          where: { id: data.appointmentId },
+          data: { status: "COMPLETED" },
+        });
+      }
+
+      return created;
     }, TX_OPTS);
 
     return {
@@ -144,7 +156,6 @@ export async function updateInvoice(
     return { success: false, error: true, message: "Missing invoice id." };
 
   try {
-    // Fast fail before doing any real work or opening a transaction.
     const precheck = await prisma.invoice.findUniqueOrThrow({
       where: { id: data.id },
     });
@@ -177,7 +188,6 @@ export async function updateInvoice(
       };
     }
 
-    // Read-only + pure computation happens before we open a transaction.
     const { itemsData, subtotal, discountTotal, taxTotal, total } =
       await computeItemsAndTotals(
         data.items,
@@ -187,9 +197,6 @@ export async function updateInvoice(
       );
 
     const invoice = await prisma.$transaction(async (tx) => {
-      // Re-check status inside the transaction in case it changed between
-      // the precheck above and now (e.g. a payment or cancellation landed
-      // concurrently).
       const existing = await tx.invoice.findUniqueOrThrow({
         where: { id: data.id },
       });
@@ -202,8 +209,6 @@ export async function updateInvoice(
         throw new Error("This invoice has been cancelled and can't be edited.");
       }
 
-      // deleteMany on InvoiceItem cascades to InvoiceItemEmployee
-      // (onDelete: Cascade on that relation), so no separate cleanup needed.
       await tx.invoiceItem.deleteMany({ where: { invoiceId: data.id } });
 
       const paidAgg = await tx.payment.aggregate({
@@ -221,8 +226,6 @@ export async function updateInvoice(
       return tx.invoice.update({
         where: { id: data.id },
         data: {
-          // customerId intentionally omitted — locked once an invoice
-          // exists, regardless of what the client sends.
           subtotal,
           discountType: data.discountType,
           discountValue: data.discountValue,
@@ -252,23 +255,6 @@ export async function updateInvoice(
   }
 }
 
-/**
- * Records a payment against an invoice.
- *
- * `amount` is the amount TENDERED by the customer — it may be less than,
- * equal to, or greater than the balance due:
- *   - Less than balance due  -> partial payment, invoice becomes PARTIALLY_PAID.
- *   - Equal to balance due   -> invoice becomes PAID.
- *   - More than balance due  -> only the balance due is applied to the
- *     invoice (revenue); the rest is returned as `change` and is NOT
- *     counted toward the invoice.
- *
- * The full tendered amount and any change given are persisted on the
- * Payment row (amountTendered / changeGiven) even though only `amount`
- * (the applied/revenue portion) affects the invoice balance. This keeps
- * every report that sums Payment.amount correct while still preserving
- * an audit trail of what actually changed hands.
- */
 export async function recordInvoicePayment(
   invoiceId: string,
   amount: number,
@@ -478,22 +464,6 @@ export async function getCustomerOutstandingInvoices(
     .filter((inv) => inv.balanceDue > 0);
 }
 
-/**
- * Records a single tendered amount that may cover BOTH previously-accepted
- * outstanding invoices and the current invoice, in one atomic waterfall:
- *
- *   1. Pay off each `dueInvoiceIds` entry in oldest-first order, capped at
- *      its own remaining balance. Fully covered -> PAID. Partially covered
- *      (ran out of money mid-way) -> PARTIALLY_PAID, and nothing is left
- *      for anything after it.
- *   2. Whatever remains after that goes toward `currentInvoiceId`, using
- *      the same tendered/applied/change rules as a normal payment.
- *
- * `currentInvoiceId`'s own `total` is NEVER modified here — only Payment
- * rows and statuses change. The order of `dueInvoiceIds` passed in is
- * ignored in favor of each invoice's own createdAt, so a tampered client
- * payload can't reorder the waterfall.
- */
 export async function recordInvoicePaymentWithDue(
   currentInvoiceId: string,
   dueInvoiceIds: string[],
@@ -638,14 +608,10 @@ export async function recordInvoicePaymentWithDue(
           data: { status: newCurrentStatus },
         });
       } else if (remaining.gt(0)) {
-        // Current invoice already fully covered by the due-invoice
-        // waterfall alone (shouldn't normally happen, since due invoices
-        // are capped at their own balance) — treat any leftover as change.
+
         changeGiven = Number(remaining);
       }
 
-      // Audit trail — one row per settled due invoice, regardless of
-      // whether it ended up fully or only partially paid.
       for (const s of settled) {
         await tx.invoiceDueCollection.create({
           data: {

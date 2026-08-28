@@ -114,7 +114,9 @@ const FormModal = ({
       ? "bg-[#FAE27C]"
       : type === "update"
         ? "bg-[#C3EBFA]"
-        : "bg-[#CFCEFF]";
+        : type === "convert"
+          ? "bg-[#FFDDBB]"
+          : "bg-[#CFCEFF]";
 
   const [open, setOpen] = useState(false);
 
@@ -204,6 +206,8 @@ const FormModal = ({
       </form>
     ) : type === "create" || type === "update" ? (
       forms[table](setOpen, type, data, relatedData)
+    ) : type === "convert" ? (
+      forms[table](setOpen, "create", data, relatedData)
     ) : (
       "Form not found!"
     );
@@ -279,7 +283,11 @@ const FormModal = ({
           className={`${size} flex items-center justify-center rounded-full ${bgColor} cursor-pointer`}
           onClick={() => setOpen(true)}
         >
-          <Image src={`/${type}.png`} alt="" height={16} width={16} />
+          {type === "convert" ? (
+            <Image src={`/convert.png`} alt="" height={16} width={16} />
+          ) : (
+            <Image src={`/${type}.png`} alt="" height={16} width={16} />
+          )}
         </button>
       )}
       {open && (

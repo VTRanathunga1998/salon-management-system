@@ -62,7 +62,7 @@ const InvoiceForm = ({
     formState: { errors },
   } = useForm<InvoiceFormInput, any, InvoiceSchema>({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: data
+    defaultValues: data?.id
       ? {
           id: data.id,
           customerId: data.customerId,
@@ -71,7 +71,6 @@ const InvoiceForm = ({
             serviceId: i.serviceId,
             employeeIds: i.employees?.map((e: any) => e.employeeId) ?? [],
             quantity: i.quantity,
-
             customPrice:
               i.unitPrice != null &&
               relatedData?.services.find((s) => s.id === i.serviceId)?.price !==
@@ -94,18 +93,22 @@ const InvoiceForm = ({
           cancelReason: "",
         }
       : {
-          items: [
-            {
-              serviceId: "",
-              employeeIds: [],
-              quantity: 1,
-              customPrice: undefined,
-            },
-          ],
+          customerId: data?.customerId ?? undefined,
+          appointmentId: data?.appointmentId ?? undefined,
+          items: data?.items?.length
+            ? data.items // already in {serviceId, employeeIds, quantity} shape
+            : [
+                {
+                  serviceId: "",
+                  employeeIds: [],
+                  quantity: 1,
+                  customPrice: undefined,
+                },
+              ],
           discountType: "FIXED",
           discountValue: 0,
           taxRate: 0,
-          notes: "",
+          notes: data?.appointmentId ? "Converted from appointment" : "",
         },
   });
 
@@ -294,6 +297,15 @@ const InvoiceForm = ({
               data?.status === "PARTIALLY_PAID" ? " (Partially Paid)" : ""
             }`}
       </h2>
+
+      {data?.id && <input type="hidden" {...register("id")} value={data.id} />}
+      {data?.appointmentId && (
+        <input
+          type="hidden"
+          {...register("appointmentId")}
+          value={data.appointmentId}
+        />
+      )}
 
       {data?.status === "PARTIALLY_PAID" && (
         <p className="text-xs text-blue-600 bg-blue-50 rounded-lg p-2.5">
