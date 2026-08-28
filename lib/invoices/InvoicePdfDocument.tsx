@@ -378,25 +378,48 @@ interface InvoicePdfProps {
 
     payments?: {
       amount: number | string;
+      amountTendered?: number | string | null;
+      changeGiven?: number | string | null;
+      method?: string;
+    }[];
+
+    dueCollections?: {
+      sourceInvoiceNumber: string;
+      amount: number | string;
     }[];
   };
 }
 
 const InvoicePdfDocument = ({ invoice }: InvoicePdfProps) => {
-  const num = (value: number | string) => Number(value);
+  const num = (value: number | string | null | undefined) => Number(value ?? 0);
 
-  const amountPaid = (invoice.payments ?? []).reduce(
-    (sum, payment) => sum + num(payment.amount),
+  const payments = invoice.payments ?? [];
+
+  // "Paid" — what actually applied to THIS invoice's balance.
+  const amountPaid = payments.reduce((sum, p) => sum + num(p.amount), 0);
+
+  // "Amount Received" — what the customer actually handed over across all
+  // payments (can exceed amountPaid if change was given on any of them).
+  const amountReceived = payments.reduce(
+    (sum, p) =>
+      sum + (p.amountTendered != null ? num(p.amountTendered) : num(p.amount)),
+    0,
+  );
+
+  const changeGivenTotal = payments.reduce(
+    (sum, p) => sum + num(p.changeGiven),
     0,
   );
 
   const total = num(invoice.total);
-
   const balanceDue = Math.max(total - amountPaid, 0);
 
   const hasDiscount = num(invoice.discountTotal) > 0;
   const hasTax = num(invoice.taxTotal) > 0;
   const hasPayment = amountPaid > 0;
+  const hasChange = changeGivenTotal > 0;
+  const showAmountReceived =
+    amountReceived > 0 && amountReceived !== amountPaid;
 
   return (
     <Document>
@@ -539,10 +562,30 @@ const InvoicePdfDocument = ({ invoice }: InvoicePdfProps) => {
             </View>
 
             {hasPayment && (
-              <View style={styles.paidRow}>
-                <Text style={styles.totalsLabel}>Paid</Text>
-                <Text style={styles.totalsValue}>{money(amountPaid)}</Text>
-              </View>
+              <>
+                {showAmountReceived && (
+                  <View style={styles.paidRow}>
+                    <Text style={styles.totalsLabel}>Amount Received</Text>
+                    <Text style={styles.totalsValue}>
+                      {money(amountReceived)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.paidRow}>
+                  <Text style={styles.totalsLabel}>Paid</Text>
+                  <Text style={styles.totalsValue}>{money(amountPaid)}</Text>
+                </View>
+
+                {hasChange && (
+                  <View style={styles.paidRow}>
+                    <Text style={styles.totalsLabel}>Change Given</Text>
+                    <Text style={styles.totalsValue}>
+                      {money(changeGivenTotal)}
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
 
             {balanceDue > 0 && (
@@ -553,6 +596,17 @@ const InvoicePdfDocument = ({ invoice }: InvoicePdfProps) => {
             )}
           </View>
         </View>
+
+        {invoice.dueCollections && invoice.dueCollections.length > 0 && (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionLabel}>Previous Balances Settled</Text>
+            {invoice.dueCollections.map((c, i) => (
+              <Text key={i} style={styles.notesText}>
+                {money(c.amount)} — {c.sourceInvoiceNumber}
+              </Text>
+            ))}
+          </View>
+        )}
 
         {/* =====================================================
             NOTES

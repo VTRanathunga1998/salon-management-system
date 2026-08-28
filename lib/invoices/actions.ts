@@ -24,14 +24,6 @@ async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
   return `INV-${seriesKey}-${counter.lastNumber.toString().padStart(6, "0")}`;
 }
 
-/**
- * Pulls current service data and computes line items + totals.
- * Deliberately takes `prisma` (not `tx`) — this is a read-only lookup
- * against a slow-changing catalog table, so it doesn't need to be
- * inside the write transaction. Keeping it out shortens transaction
- * time significantly and avoids Prisma's interactive-transaction
- * timeout on slower connections.
- */
 async function computeItemsAndTotals(
   items: InvoiceSchema["items"],
   discountType: DiscountType,
@@ -89,6 +81,7 @@ const invoiceInclude = {
   customer: true,
   items: { include: { employees: { include: { employee: true } } } },
   payments: { where: { status: "COMPLETED" as const } },
+  dueCollections: true,
 };
 
 export async function createInvoice(
@@ -450,4 +443,237 @@ export async function refundInvoice(invoiceId: string, reason: string) {
     invoice: serializeData(updated),
     message: `Invoice ${updated.invoiceNumber} refunded.`,
   };
+}
+
+export async function getCustomerOutstandingInvoices(
+  customerId: string,
+  excludeInvoiceId?: string,
+) {
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      customerId,
+      status: { in: ["ISSUED", "PARTIALLY_PAID"] },
+      ...(excludeInvoiceId ? { id: { not: excludeInvoiceId } } : {}),
+    },
+    include: {
+      payments: { where: { status: "COMPLETED" } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return invoices
+    .map((inv) => {
+      const paid = inv.payments.reduce(
+        (sum, p) => sum.add(p.amount),
+        new Prisma.Decimal(0),
+      );
+      const balanceDue = Number(inv.total.sub(paid));
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        createdAt: inv.createdAt.toISOString(),
+        balanceDue,
+      };
+    })
+    .filter((inv) => inv.balanceDue > 0);
+}
+
+/**
+ * Records a single tendered amount that may cover BOTH previously-accepted
+ * outstanding invoices and the current invoice, in one atomic waterfall:
+ *
+ *   1. Pay off each `dueInvoiceIds` entry in oldest-first order, capped at
+ *      its own remaining balance. Fully covered -> PAID. Partially covered
+ *      (ran out of money mid-way) -> PARTIALLY_PAID, and nothing is left
+ *      for anything after it.
+ *   2. Whatever remains after that goes toward `currentInvoiceId`, using
+ *      the same tendered/applied/change rules as a normal payment.
+ *
+ * `currentInvoiceId`'s own `total` is NEVER modified here — only Payment
+ * rows and statuses change. The order of `dueInvoiceIds` passed in is
+ * ignored in favor of each invoice's own createdAt, so a tampered client
+ * payload can't reorder the waterfall.
+ */
+export async function recordInvoicePaymentWithDue(
+  currentInvoiceId: string,
+  dueInvoiceIds: string[],
+  amount: number,
+  method: "CASH" | "CARD" | "BANK_TRANSFER",
+): Promise<{
+  success: boolean;
+  message?: string;
+  invoice?: any;
+  change?: number;
+  settledDueInvoices?: {
+    id: string;
+    invoiceNumber: string;
+    amountApplied: number;
+    status: "PAID" | "PARTIALLY_PAID";
+  }[];
+}> {
+  try {
+    if (amount <= 0) {
+      return {
+        success: false,
+        message: "Payment amount must be greater than zero.",
+      };
+    }
+
+    let changeGiven = 0;
+    const settled: {
+      id: string;
+      invoiceNumber: string;
+      amountApplied: number;
+      status: "PAID" | "PARTIALLY_PAID";
+    }[] = [];
+
+    const currentInvoice = await prisma.$transaction(async (tx) => {
+      const dueInvoicesRaw = dueInvoiceIds.length
+        ? await tx.invoice.findMany({
+            where: { id: { in: dueInvoiceIds } },
+            include: { payments: { where: { status: "COMPLETED" } } },
+            orderBy: { createdAt: "asc" },
+          })
+        : [];
+
+      let remaining = new Prisma.Decimal(amount);
+
+      for (const due of dueInvoicesRaw) {
+        if (remaining.lte(0)) break;
+        if (
+          due.status === "CANCELLED" ||
+          due.status === "REFUNDED" ||
+          due.status === "PAID"
+        ) {
+          continue;
+        }
+
+        const alreadyPaid = due.payments.reduce(
+          (sum, p) => sum.add(p.amount),
+          new Prisma.Decimal(0),
+        );
+        const rawBalance = due.total.sub(alreadyPaid);
+        const balance = rawBalance.isNegative()
+          ? new Prisma.Decimal(0)
+          : rawBalance;
+        if (balance.lte(0)) continue;
+
+        const applied = remaining.gt(balance) ? balance : remaining;
+
+        await tx.payment.create({
+          data: {
+            invoiceId: due.id,
+            amount: applied,
+            amountTendered: applied,
+            changeGiven: 0,
+            method,
+            status: "COMPLETED",
+          },
+        });
+
+        const newTotalPaid = alreadyPaid.add(applied);
+        const newStatus = newTotalPaid.gte(due.total)
+          ? InvoiceStatus.PAID
+          : InvoiceStatus.PARTIALLY_PAID;
+
+        await tx.invoice.update({
+          where: { id: due.id },
+          data: { status: newStatus },
+        });
+
+        settled.push({
+          id: due.id,
+          invoiceNumber: due.invoiceNumber,
+          amountApplied: Number(applied),
+          status: newStatus === InvoiceStatus.PAID ? "PAID" : "PARTIALLY_PAID",
+        });
+
+        remaining = remaining.sub(applied);
+      }
+
+      // Whatever's left goes toward the current invoice. Its own `total`
+      // is untouched — only its payment/status change.
+      const current = await tx.invoice.findUniqueOrThrow({
+        where: { id: currentInvoiceId },
+        include: { payments: { where: { status: "COMPLETED" } } },
+      });
+
+      if (current.status === "CANCELLED") {
+        throw new Error("Cannot record a payment on a cancelled invoice.");
+      }
+
+      const currentAlreadyPaid = current.payments.reduce(
+        (sum, p) => sum.add(p.amount),
+        new Prisma.Decimal(0),
+      );
+      const currentRawBalance = current.total.sub(currentAlreadyPaid);
+      const currentBalance = currentRawBalance.isNegative()
+        ? new Prisma.Decimal(0)
+        : currentRawBalance;
+
+      if (remaining.gt(0) && currentBalance.gt(0)) {
+        const appliedToCurrent = remaining.gt(currentBalance)
+          ? currentBalance
+          : remaining;
+        changeGiven = Number(remaining.sub(appliedToCurrent));
+
+        await tx.payment.create({
+          data: {
+            invoiceId: currentInvoiceId,
+            amount: appliedToCurrent,
+            amountTendered: remaining,
+            changeGiven,
+            method,
+            status: "COMPLETED",
+          },
+        });
+
+        const newCurrentPaid = currentAlreadyPaid.add(appliedToCurrent);
+        const newCurrentStatus = newCurrentPaid.gte(current.total)
+          ? InvoiceStatus.PAID
+          : InvoiceStatus.PARTIALLY_PAID;
+
+        await tx.invoice.update({
+          where: { id: currentInvoiceId },
+          data: { status: newCurrentStatus },
+        });
+      } else if (remaining.gt(0)) {
+        // Current invoice already fully covered by the due-invoice
+        // waterfall alone (shouldn't normally happen, since due invoices
+        // are capped at their own balance) — treat any leftover as change.
+        changeGiven = Number(remaining);
+      }
+
+      // Audit trail — one row per settled due invoice, regardless of
+      // whether it ended up fully or only partially paid.
+      for (const s of settled) {
+        await tx.invoiceDueCollection.create({
+          data: {
+            collectingInvoiceId: currentInvoiceId,
+            sourceInvoiceId: s.id,
+            sourceInvoiceNumber: s.invoiceNumber,
+            amount: new Prisma.Decimal(s.amountApplied),
+            method,
+          },
+        });
+      }
+
+      return tx.invoice.findUniqueOrThrow({
+        where: { id: currentInvoiceId },
+        include: invoiceInclude,
+      });
+    }, TX_OPTS);
+
+    return {
+      success: true,
+      invoice: serializeData(currentInvoice),
+      change: changeGiven,
+      settledDueInvoices: settled,
+    };
+  } catch (err) {
+    console.error(err);
+    const message =
+      err instanceof Error ? err.message : "Failed to record payment.";
+    return { success: false, message };
+  }
 }

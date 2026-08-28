@@ -118,6 +118,8 @@ const FormModal = ({
 
   const [open, setOpen] = useState(false);
 
+  const router = useRouter();
+
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
     return () => {
@@ -289,7 +291,10 @@ const FormModal = ({
             <Form />
             <div
               className="absolute top-4 right-4 cursor-pointer"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                router.refresh();
+              }}
             >
               <Image src="/close.png" alt="close" width={14} height={14} />
             </div>

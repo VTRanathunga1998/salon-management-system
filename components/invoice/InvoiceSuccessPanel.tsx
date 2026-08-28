@@ -1,10 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Banknote, CreditCard, Landmark, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Banknote,
+  CreditCard,
+  Landmark,
+  Clock,
+  AlertTriangle,
+  Check,
+  X,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import InvoicePreview from "@/components/invoice/InvoicePreview";
-import { recordInvoicePayment, refundInvoice } from "@/lib/invoices/actions";
+import {
+  recordInvoicePayment,
+  refundInvoice,
+  getCustomerOutstandingInvoices,
+  recordInvoicePaymentWithDue,
+} from "@/lib/invoices/actions";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoiceEmail";
 
 type PaymentMethod = "CASH" | "CARD" | "BANK_TRANSFER" | "CREDIT";
@@ -41,6 +54,61 @@ const PAYMENT_METHOD_OPTIONS: {
   },
 ];
 
+type DueInvoice = {
+  id: string;
+  invoiceNumber: string;
+  createdAt: string;
+  balanceDue: number;
+};
+
+type DuePreview = {
+  id: string;
+  invoiceNumber: string;
+  applied: number;
+  resultingStatus: "PAID" | "PARTIALLY_PAID" | "NO_CHANGE";
+};
+
+
+function simulateSettlement(
+  tendered: number,
+  acceptedDue: DueInvoice[],
+  currentBalanceDue: number,
+) {
+  let remaining = tendered;
+  const due: DuePreview[] = [];
+
+  for (const d of acceptedDue) {
+    if (remaining <= 0) {
+      due.push({
+        id: d.id,
+        invoiceNumber: d.invoiceNumber,
+        applied: 0,
+        resultingStatus: "NO_CHANGE",
+      });
+      continue;
+    }
+    const applied = Math.min(remaining, d.balanceDue);
+    due.push({
+      id: d.id,
+      invoiceNumber: d.invoiceNumber,
+      applied,
+      resultingStatus: applied >= d.balanceDue ? "PAID" : "PARTIALLY_PAID",
+    });
+    remaining -= applied;
+  }
+
+  const currentApplied = Math.min(Math.max(remaining, 0), currentBalanceDue);
+  const currentResultingStatus: "PAID" | "PARTIALLY_PAID" | "NO_CHANGE" =
+    currentBalanceDue > 0 && currentApplied >= currentBalanceDue
+      ? "PAID"
+      : currentApplied > 0
+        ? "PARTIALLY_PAID"
+        : "NO_CHANGE";
+  const change = Math.max(remaining - currentApplied, 0);
+
+  return { due, currentApplied, currentResultingStatus, change };
+}
+
 const InvoiceSuccessPanel = ({
   invoice,
   onDone,
@@ -59,10 +127,6 @@ const InvoiceSuccessPanel = ({
   const [paymentError, setPaymentError] = useState("");
   const [lastChange, setLastChange] = useState<number | null>(null);
 
-  // Two-step flow: while there's an outstanding balance and payment
-  // collection is offered, Print/Download/Email stay hidden behind a
-  // payment step. Read-only views (already PAID / CANCELLED, or nothing
-  // owed at all) skip straight to the actions step — nothing to collect.
   const initialBalanceDue = Math.max(
     Number(invoice.total) - paidSoFar(invoice),
     0,
@@ -87,22 +151,57 @@ const InvoiceSuccessPanel = ({
   const isCredit = paymentMethod === "CREDIT";
   const enteredAmount = Number(paymentAmount) || 0;
 
-  // Whatever is entered, up to the balance due, gets applied to the
-  // invoice. Anything entered beyond the balance due is change handed
-  // back to the customer. Credit applies nothing at all — the input is
-  // locked and nothing is received.
-  const appliedAmount = isCredit ? 0 : Math.min(enteredAmount, balanceDue);
-  const changeAmount = isCredit ? 0 : Math.max(enteredAmount - balanceDue, 0);
-  const remainingAfterPayment = isCredit
-    ? balanceDue
-    : Math.max(balanceDue - appliedAmount, 0);
-  const projectedTotalPaid = amountPaid + appliedAmount;
+  // --- Outstanding-balance collection (from OTHER invoices of this customer) ---
+  const [dueInvoices, setDueInvoices] = useState<DueInvoice[]>([]);
+  const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
-  // A single "Balance" figure whose meaning flips depending on context:
-  // - Credit: nothing collected, full balance still owed.
-  // - Overpayment: change to hand back to the customer.
-  // - Partial or exact payment: what's still owed after this payment
-  //   (zero when the payment fully settles it).
+  useEffect(() => {
+    if (!allowPayment || paymentCompleted) return;
+    const customerId = current.customer?.id;
+    if (!customerId) return;
+
+    let cancelled = false;
+    (async () => {
+      const outstanding = await getCustomerOutstandingInvoices(
+        customerId,
+        current.id,
+      );
+      if (!cancelled) setDueInvoices(outstanding);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.id, allowPayment]);
+
+  // Credit means nothing is actually collected, so it can't settle old
+  // balances either — drop any acceptances if the method switches to it.
+  useEffect(() => {
+    if (isCredit) setAcceptedIds(new Set());
+  }, [isCredit]);
+
+  const visibleDueInvoices = dueInvoices.filter((d) => !rejectedIds.has(d.id));
+  // Preserves oldest-first order since `dueInvoices` came pre-sorted.
+  const acceptedDueInvoices = visibleDueInvoices.filter((d) =>
+    acceptedIds.has(d.id),
+  );
+  const acceptedDueTotal = acceptedDueInvoices.reduce(
+    (sum, d) => sum + d.balanceDue,
+    0,
+  );
+  const combinedTotal = balanceDue + (isCredit ? 0 : acceptedDueTotal);
+
+  const sim = isCredit
+    ? null
+    : simulateSettlement(enteredAmount, acceptedDueInvoices, balanceDue);
+
+  const changeAmount = isCredit ? 0 : sim!.change;
+  const remainingAfterPayment = isCredit
+    ? combinedTotal
+    : Math.max(combinedTotal - Math.min(enteredAmount, combinedTotal), 0);
+
   const balanceValue = isCredit
     ? balanceDue
     : changeAmount > 0
@@ -116,46 +215,64 @@ const InvoiceSuccessPanel = ({
         ? "Remaining Balance"
         : "Balance";
 
-  // Only real guard for Cash/Card/Bank Transfer: an amount must actually
-  // be entered. Partial amounts are valid and expected.
   const isAmountInvalid = !isCredit && enteredAmount <= 0;
 
   let resultingStatusLabel: string;
   let resultingStatusClasses: string;
-  let liveStatus: string;
 
   if (isCredit) {
     resultingStatusLabel = "Issued (Credit)";
     resultingStatusClasses = "bg-amber-50 text-amber-700";
-    liveStatus = "ISSUED";
-  } else if (projectedTotalPaid >= Number(current.total)) {
+  } else if (sim!.currentResultingStatus === "PAID") {
     resultingStatusLabel = "Paid";
     resultingStatusClasses = "bg-emerald-50 text-emerald-700";
-    liveStatus = "PAID";
-  } else {
+  } else if (sim!.currentResultingStatus === "PARTIALLY_PAID") {
     resultingStatusLabel = "Partially Paid";
     resultingStatusClasses = "bg-blue-50 text-blue-700";
-    liveStatus = "PARTIALLY_PAID";
+  } else {
+    resultingStatusLabel =
+      current.status === "PARTIALLY_PAID" ? "Partially Paid" : "Issued";
+    resultingStatusClasses = "bg-gray-100 text-gray-600";
   }
 
-  // Only project a live status during the payment step — once the
-  // transaction is finalized (or for read-only views), show the real
-  // status from the server.
+  const projectedTotalPaid = amountPaid + (sim ? sim.currentApplied : 0);
   const previewStatus =
     !paymentCompleted && allowPayment && balanceDue > 0
-      ? liveStatus
+      ? sim?.currentResultingStatus === "PAID"
+        ? "PAID"
+        : sim?.currentResultingStatus === "PARTIALLY_PAID"
+          ? "PARTIALLY_PAID"
+          : current.status
       : current.status;
   const previewAmountPaid =
     !paymentCompleted && allowPayment && balanceDue > 0
       ? projectedTotalPaid
       : amountPaid;
 
-  // Step 1 -> Step 2: record the payment (unless CREDIT), then reveal the
-  // print/download/email actions. Does NOT close the panel.
+  const handleAcceptDue = (id: string) => {
+    setAcceptedIds((s) => new Set(s).add(id));
+  };
+
+  const handleUndoAccept = (id: string) => {
+    setAcceptedIds((s) => {
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleRejectDue = (id: string) => {
+    setRejectedIds((s) => new Set(s).add(id));
+    setAcceptedIds((s) => {
+      if (!s.has(id)) return s;
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
+  };
+
   const handleConfirmPayment = async () => {
     if (isCredit) {
-      // No payment recorded — the invoice stays exactly as it is. Just
-      // move on to the actions step.
       setPaymentCompleted(true);
       return;
     }
@@ -169,16 +286,17 @@ const InvoiceSuccessPanel = ({
     setPaymentError("");
     setLastChange(null);
 
-    const res = await recordInvoicePayment(
+    const res = await recordInvoicePaymentWithDue(
       current.id,
+      acceptedDueInvoices.map((d) => d.id),
       enteredAmount,
-      paymentMethod,
+      paymentMethod as "CASH" | "CARD" | "BANK_TRANSFER",
     );
     setFinishing(false);
 
     if (!res.success || !res.invoice) {
       const message = res.message || "Failed to record payment.";
-      console.warn("[recordInvoicePayment]", message);
+      console.warn("[recordInvoicePaymentWithDue]", message);
       setPaymentError(message);
       toast.error(message);
       return;
@@ -186,10 +304,40 @@ const InvoiceSuccessPanel = ({
 
     setCurrent(res.invoice);
 
+    // Drop fully-settled due invoices from the list; shrink the balance
+    // shown for any that only got partially settled.
+    const settledMap = new Map(
+      (res.settledDueInvoices ?? []).map((s) => [s.id, s]),
+    );
+    setDueInvoices((list) =>
+      list
+        .map((d) => {
+          const s = settledMap.get(d.id);
+          if (!s) return d;
+          if (s.status === "PAID") return null;
+          return {
+            ...d,
+            balanceDue: Math.max(d.balanceDue - s.amountApplied, 0),
+          };
+        })
+        .filter((d): d is DueInvoice => d !== null),
+    );
+    setAcceptedIds(new Set());
+
+    const settledCount = (res.settledDueInvoices ?? []).filter(
+      (s) => s.status === "PAID",
+    ).length;
+
     if (res.change && res.change > 0) {
       setLastChange(res.change);
       toast.success(
         `Payment recorded. Change due: AED ${res.change.toFixed(2)}`,
+      );
+    } else if (settledCount > 0) {
+      toast.success(
+        `Payment recorded. ${settledCount} previous invoice${
+          settledCount > 1 ? "s" : ""
+        } settled in full.`,
       );
     } else if (res.invoice.status === "PARTIALLY_PAID") {
       toast.success("Partial payment recorded.");
@@ -211,10 +359,7 @@ const InvoiceSuccessPanel = ({
     const email = emailAddress.trim();
 
     if (!email) {
-      setEmailResult({
-        success: false,
-        message: "Enter an email address.",
-      });
+      setEmailResult({ success: false, message: "Enter an email address." });
       return;
     }
 
@@ -288,12 +433,20 @@ const InvoiceSuccessPanel = ({
         notes={current.notes}
       />
 
+      {(current.dueCollections ?? []).length > 0 && (
+        <div className="rounded-lg bg-gray-50 text-gray-600 text-xs p-3 flex flex-col gap-1">
+          <span className="font-semibold text-gray-700">
+            Previous balances settled with this payment
+          </span>
+          {current.dueCollections.map((c: any) => (
+            <span key={c.id}>
+              AED {Number(c.amount).toFixed(2)} — {c.sourceInvoiceNumber}
+            </span>
+          ))}
+        </div>
+      )}
+
       {!paymentCompleted ? (
-        /* =========================================================
-           STEP 1 — Payment collection. Print/Download/Email are not
-           reachable from here; they only appear after this step is
-           confirmed (see STEP 2 below).
-        ========================================================== */
         <div className="rounded-lg ring-[1.5px] ring-gray-100 p-4 flex flex-col gap-4">
           <div>
             <p className="text-sm font-semibold text-gray-800 mb-2">
@@ -350,9 +503,18 @@ const InvoiceSuccessPanel = ({
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Total</span>
             <span className="text-sm text-gray-600">
-              AED {balanceDue.toFixed(2)}
+              AED {(isCredit ? balanceDue : combinedTotal).toFixed(2)}
             </span>
           </div>
+
+          {!isCredit && acceptedDueInvoices.length > 0 && (
+            <p className="text-xs text-gray-400 -mt-2">
+              Includes AED {acceptedDueTotal.toFixed(2)} from{" "}
+              {acceptedDueInvoices.length === 1
+                ? "1 previous invoice"
+                : `${acceptedDueInvoices.length} previous invoices`}
+            </p>
+          )}
 
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">{balanceLabel}</span>
@@ -371,10 +533,121 @@ const InvoiceSuccessPanel = ({
             </span>
           </div>
 
-          {!isCredit && enteredAmount > 0 && enteredAmount < balanceDue && (
+          {isCredit &&
+            dueInvoices.filter((d) => !rejectedIds.has(d.id)).length > 0 && (
+              <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">
+                This customer has a previous unpaid balance — switch to Cash,
+                Card, or Bank Transfer to collect it now.
+              </p>
+            )}
+
+          {!isCredit &&
+            visibleDueInvoices.map((due) => {
+              const isAccepted = acceptedIds.has(due.id);
+              const preview = sim?.due.find((d) => d.id === due.id);
+
+              return (
+                <div
+                  key={due.id}
+                  className="rounded-lg ring-[1.5px] ring-orange-200 bg-orange-50 p-4 flex flex-col gap-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-orange-700">
+                        Customer has an outstanding due amount
+                      </p>
+                      <p className="text-xs text-orange-600">
+                        The customer has a previous unpaid balance. Would you
+                        like to collect it now?
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-orange-100" />
+
+                  <div className="flex flex-wrap items-end gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-gray-500">Invoice Number</p>
+                      <p className="font-medium text-gray-800">
+                        {due.invoiceNumber}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Invoice Date</p>
+                      <p className="font-medium text-gray-800">
+                        {new Date(due.createdAt).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Due Amount</p>
+                      <p className="font-semibold text-orange-600">
+                        AED {due.balanceDue.toFixed(2)}
+                      </p>
+                    </div>
+
+                    {isAccepted &&
+                      preview &&
+                      preview.resultingStatus !== "NO_CHANGE" && (
+                        <div className="ml-auto">
+                          <span
+                            className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                              preview.resultingStatus === "PAID"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            Will be{" "}
+                            {preview.resultingStatus === "PAID"
+                              ? "Paid"
+                              : "Partially Paid"}{" "}
+                            (AED {preview.applied.toFixed(2)})
+                          </span>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    {isAccepted ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUndoAccept(due.id)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg ring-[1.5px] ring-gray-200 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" /> Remove
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleRejectDue(due.id)}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg ring-[1.5px] ring-gray-200 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <X className="h-3.5 w-3.5" /> Reject
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptDue(due.id)}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium cursor-pointer"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Accept & Add
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+          {!isCredit && enteredAmount > 0 && enteredAmount < combinedTotal && (
             <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2.5">
-              This is a partial payment — AED {remainingAfterPayment.toFixed(2)}{" "}
-              will remain due after this payment.
+              This won't fully cover everything — AED{" "}
+              {remainingAfterPayment.toFixed(2)} will remain due after this
+              payment.
             </p>
           )}
 
@@ -388,7 +661,7 @@ const InvoiceSuccessPanel = ({
           <div
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${resultingStatusClasses}`}
           >
-            <span>This invoice will be marked as</span>
+            <span>Today's invoice will be marked as</span>
             <span>{resultingStatusLabel}</span>
           </div>
 
@@ -410,11 +683,6 @@ const InvoiceSuccessPanel = ({
           </button>
         </div>
       ) : (
-        /* =========================================================
-           STEP 2 — Payment is settled (or partially settled / on
-           credit), or this is a read-only view. Print/Download/Email
-           are only reachable from here.
-        ========================================================== */
         <>
           {!allowPayment && current.status === "PAID" && (
             <>
@@ -501,7 +769,6 @@ const InvoiceSuccessPanel = ({
             </div>
           )}
 
-          {/* Print / Download / Email — only reachable once this payment step is settled */}
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-3">
               <button
@@ -511,15 +778,13 @@ const InvoiceSuccessPanel = ({
                     `/api/invoices/${current.id}/pdf`,
                     "_blank",
                   );
-
-                  if (printWindow) {
-                    printWindow.focus();
-                  }
+                  if (printWindow) printWindow.focus();
                 }}
                 className="hidden sm:block min-w-[140px] flex-1 rounded-lg py-2.5 text-sm font-medium text-gray-600 ring-[1.5px] ring-gray-200 transition hover:bg-gray-50 hover:ring-gray-300 cursor-pointer"
               >
                 Print Invoice
               </button>
+
               <a
                 href={`/api/invoices/${current.id}/pdf?download=true`}
                 className="hidden sm:block flex-1 min-w-[140px] py-2.5 rounded-lg ring-[1.5px] ring-gray-200 text-sm font-medium text-gray-600 hover:ring-gray-300 hover:bg-gray-50 transition text-center cursor-pointer"

@@ -17,7 +17,7 @@ export async function GET(
     where: { id },
     include: {
       customer: true,
-      payments: true,
+      payments: { where: { status: "COMPLETED" } },
       items: {
         include: {
           employees: {
@@ -27,6 +27,7 @@ export async function GET(
           },
         },
       },
+      dueCollections: true,
     },
   });
 
