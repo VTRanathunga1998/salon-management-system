@@ -35,8 +35,8 @@ enum PaymentStatus {
 }
 
 enum InvoiceStatus {
-  DRAFT // being built, not yet finalized/printed
-  ISSUED // finalized, awaiting payment
+  DRAFT 
+  ISSUED 
   PARTIALLY_PAID
   PAID
   CANCELLED

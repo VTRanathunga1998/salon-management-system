@@ -12,9 +12,6 @@ type CurrentState = {
   invoice?: any;
 };
 
-// Explicit options for every interactive transaction below.
-// maxWait: how long to wait for a free connection from the pool.
-// timeout: how long the transaction itself is allowed to run.
 const TX_OPTS = { maxWait: 10000, timeout: 15000 };
 
 async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {

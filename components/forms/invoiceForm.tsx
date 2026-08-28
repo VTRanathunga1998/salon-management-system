@@ -71,9 +71,7 @@ const InvoiceForm = ({
             serviceId: i.serviceId,
             employeeIds: i.employees?.map((e: any) => e.employeeId) ?? [],
             quantity: i.quantity,
-            // Pre-fill only if this line's saved price actually diverges
-            // from the service's current catalog price — otherwise leave
-            // blank so the field visibly reads as "using catalog price".
+
             customPrice:
               i.unitPrice != null &&
               relatedData?.services.find((s) => s.id === i.serviceId)?.price !==
