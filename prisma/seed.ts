@@ -146,9 +146,17 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("Clearing existing data...");
+const DEFAULT_CATEGORIES = [
+  { name: "Rent", isProtected: true },
+  { name: "Utilities", isProtected: true },
+  { name: "Supplies", isProtected: true },
+  { name: "Salaries", isProtected: true, isSalary: true },
+  { name: "Marketing", isProtected: true },
+  { name: "Maintenance", isProtected: true },
+  { name: "Other", isProtected: true },
+];
 
+async function main() {
   console.log("Seeding services...");
   const serviceDefs = [
     // =========================
@@ -607,9 +615,18 @@ async function main() {
       price: 120,
     },
   ];
+
   const services = await Promise.all(
     serviceDefs.map((s) => prisma.service.create({ data: s })),
   );
+
+  for (const cat of DEFAULT_CATEGORIES) {
+    await prisma.expenseCategory.upsert({
+      where: { name: cat.name },
+      create: cat,
+      update: {},
+    });
+  }
 
   console.log("Seed complete.");
   console.log(` Services: ${services.length}`);

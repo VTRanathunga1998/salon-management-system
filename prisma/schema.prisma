@@ -48,15 +48,6 @@ enum DiscountType {
   PERCENTAGE
 }
 
-enum ExpenseCategory {
-  RENT
-  UTILITIES
-  SUPPLIES
-  SALARIES
-  MARKETING
-  MAINTENANCE
-  OTHER
-}
 
 model User {
   id       String   @id @default(cuid())
@@ -73,6 +64,9 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  createdExpenseCategories    ExpenseCategory[]    @relation("ExpenseCategoryCreatedBy")
+  createdExpenseSubCategories ExpenseSubCategory[]  @relation("ExpenseSubCategoryCreatedBy")
 }
 
 model Session {
@@ -301,10 +295,13 @@ model Payment {
 model Expense {
   id String @id @default(cuid())
 
-  title    String
-  category ExpenseCategory @default(OTHER)
-  amount   Decimal         @db.Decimal(10, 2)
-  method   PaymentMethod   @default(CASH)
+  title String
+
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  amount Decimal       @db.Decimal(10, 2)
+  method PaymentMethod @default(CASH)
 
   date  DateTime
   notes String?
@@ -317,12 +314,59 @@ model Expense {
 
   employeeId  String?
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  salaryMonth String?   // "YYYY-MM", set only when category = SALARIES
+  salaryMonth String?
+
+  subCategoryId String?
+  subCategory   ExpenseSubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, salaryMonth])
-
   @@index([date])
-  @@index([category])
+  @@index([categoryId])
+  @@index([subCategoryId])
+}
+
+model ExpenseCategory {
+  id   String @id @default(cuid())
+  name String @unique
+
+  // Protects the Salaries category: can't be deleted or renamed, and the
+  // app's salary-batch UI/logic keys off this flag instead of a string enum.
+  isSalary    Boolean @default(false)
+  isProtected Boolean @default(false) // true for seeded defaults, blocks delete
+
+  isActive Boolean @default(true) // soft delete, same pattern as everywhere else
+
+  subCategories ExpenseSubCategory[]
+  expenses      Expense[]
+
+  createdById String?
+  createdBy   User?   @relation("ExpenseCategoryCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model ExpenseSubCategory {
+  id String @id @default(cuid())
+
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  name     String
+  isActive Boolean @default(true)
+
+  expenses Expense[]
+
+  createdById String?
+  createdBy   User?   @relation("ExpenseSubCategoryCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
 }
 
 model EmployeeService {

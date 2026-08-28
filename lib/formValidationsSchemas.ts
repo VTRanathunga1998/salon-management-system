@@ -320,86 +320,33 @@ export type CustomerFormInput = z.input<typeof customerSchema>;
 export const quickCustomerSchema = customerSchema.omit({ id: true });
 export type QuickCustomerSchema = z.infer<typeof quickCustomerSchema>;
 
-const toSentenceCase = (value: string) => {
-  const trimmed = value.trim();
-
-  if (!trimmed) return "";
-
-  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-};
-
-const salaryEntrySchema = z.object({
-  employeeId: z.string().min(1, "Select an employee"),
-
-  amount: z.coerce
-    .number({
-      message: "Salary amount must be a valid number!",
-    })
-    .gt(0, {
-      message: "Salary amount must be greater than 0!",
-    })
-    .max(10_000_000, {
-      message: "Salary amount seems too high — check this!",
-    }),
-});
-
 export const expenseSchema = z
   .object({
     id: z.string().optional(),
+    title: z.string().min(1, "Title is required"),
+    categoryId: z.string().min(1, "Category is required"),
+    subCategoryId: z.string().optional(),
 
-    title: z
-      .string()
-      .trim()
-      .min(2, {
-        message: "Title must be at least 2 characters long!",
-      })
-      .max(150, {
-        message: "Title is too long!",
-      })
-      .transform((value) =>
-        value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()),
-      ),
+    isSalary: z.boolean().optional().default(false),
 
-    category: z.nativeEnum(ExpenseCategory).default(ExpenseCategory.OTHER),
-
-    amount: z.coerce
-      .number({
-        message: "Amount must be a valid number!",
-      })
-      .max(10_000_000, {
-        message: "Amount seems too high — check this!",
-      })
+    amount: z.coerce.number().positive().optional(),
+    method: z.enum(["CASH", "CARD", "BANK_TRANSFER", "CREDIT"]),
+    date: z.string().min(1, "Date is required"),
+    notes: z.string().optional(),
+    salaryEntries: z
+      .array(
+        z.object({
+          employeeId: z.string().min(1),
+          amount: z.coerce.number().positive(),
+        }),
+      )
       .optional(),
-
-    method: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
-
-    date: z
-      .string()
-      .min(1, {
-        message: "Date is required!",
-      })
-      .refine((date) => date <= todayInSalonTz(), {
-        message: "Expense date can't be in the future.",
-      }),
-
-    notes: z
-      .string()
-      .max(500, {
-        message: "Notes are too long!",
-      })
-      .optional()
-      .or(z.literal("")),
-
-    salaryEntries: z.array(salaryEntrySchema).optional(),
   })
 
   .refine(
     (data) => {
-      const isNewSalary =
-        !data.id && data.category === ExpenseCategory.SALARIES;
-
+      const isNewSalary = !data.id && data.isSalary;
       if (!isNewSalary) return true;
-
       return (data.salaryEntries?.length ?? 0) > 0;
     },
     {
@@ -410,11 +357,8 @@ export const expenseSchema = z
 
   .refine(
     (data) => {
-      const isNewSalary =
-        !data.id && data.category === ExpenseCategory.SALARIES;
-
+      const isNewSalary = !data.id && data.isSalary;
       if (isNewSalary) return true;
-
       return (data.amount ?? 0) > 0;
     },
     {
@@ -426,9 +370,7 @@ export const expenseSchema = z
   .refine(
     (data) => {
       if (!data.salaryEntries) return true;
-
       const employeeIds = data.salaryEntries.map((entry) => entry.employeeId);
-
       return new Set(employeeIds).size === employeeIds.length;
     },
     {
@@ -438,5 +380,39 @@ export const expenseSchema = z
   );
 
 export type ExpenseFormInput = z.input<typeof expenseSchema>;
-
 export type ExpenseSchema = z.output<typeof expenseSchema>;
+
+export const expenseCategorySchema = z.object({
+  id: z.string().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Category name is required")
+    .max(60, "Category name is too long")
+    .regex(
+      /^[a-zA-Z0-9\s'&-]+$/,
+      "Category name can only contain letters, numbers, spaces, hyphens, apostrophes, and &",
+    )
+    .transform(toTitleCase),
+});
+export type ExpenseCategorySchema = z.infer<typeof expenseCategorySchema>;
+export type ExpenseCategoryFormInput = z.input<typeof expenseCategorySchema>;
+
+export const expenseSubCategorySchema = z.object({
+  id: z.string().optional(),
+  categoryId: z.string().min(1, "Category is required"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Subcategory name is required")
+    .max(60, "Subcategory name is too long")
+    .regex(
+      /^[a-zA-Z0-9\s'&-]+$/,
+      "Subcategory name can only contain letters, numbers, spaces, hyphens, apostrophes, and &",
+    )
+    .transform(toTitleCase),
+});
+export type ExpenseSubCategorySchema = z.infer<typeof expenseSubCategorySchema>;
+export type ExpenseSubCategoryFormInput = z.input<
+  typeof expenseSubCategorySchema
+>;

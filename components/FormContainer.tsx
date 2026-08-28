@@ -178,22 +178,29 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
       }
       case "expense": {
-        const employees = await prisma.employee.findMany({
-          where: {
-            isActive: true,
-          },
-          select: {
-            id: true,
-            name: true,
-            isActive: true,
-          },
-          orderBy: {
-            name: "asc",
-          },
-        });
+        const [employees, categories, subCategories] = await Promise.all([
+          prisma.employee.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+          prisma.expenseCategory.findMany({
+            where:
+              type === "update" && data?.categoryId ? {} : { isActive: true },
+            select: { id: true, name: true, isSalary: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+          prisma.expenseSubCategory.findMany({
+            where:
+              type === "update" && data?.subCategoryId
+                ? {}
+                : { isActive: true },
+            select: { id: true, categoryId: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+        ]);
 
-        relatedData = { employees };
-
+        relatedData = { employees, categories, subCategories };
         break;
       }
     }

@@ -13,28 +13,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { Plus, Trash2, Users, AlertCircle } from "lucide-react";
 
-import {
-  expenseSchema,
-  ExpenseFormInput,
-  ExpenseSchema,
-} from "@/lib/formValidationsSchemas";
-
 import { createExpense, updateExpense } from "@/lib/expenses/actions";
 
 import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 
 import { toDateInputInSalonTz, todayInSalonTz } from "@/lib/utils/timezone";
-
-const categoryOptions = [
-  { value: "RENT", label: "Rent" },
-  { value: "UTILITIES", label: "Utilities" },
-  { value: "SUPPLIES", label: "Supplies" },
-  { value: "SALARIES", label: "Salaries" },
-  { value: "MARKETING", label: "Marketing" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "OTHER", label: "Other" },
-];
+import {
+  expenseSchema,
+  ExpenseFormInput,
+  ExpenseSchema,
+} from "@/lib/formValidationsSchemas";
 
 const methodOptions = [
   { value: "CASH", label: "Cash" },
@@ -49,8 +38,24 @@ type EmployeeOption = {
   isActive: boolean;
 };
 
+type CategoryOption = {
+  id: string;
+  name: string;
+  isSalary: boolean;
+  isActive: boolean;
+};
+
+type SubCategoryOption = {
+  id: string;
+  categoryId: string;
+  name: string;
+  isActive: boolean;
+};
+
 type RelatedData = {
   employees: EmployeeOption[];
+  categories: CategoryOption[];
+  subCategories: SubCategoryOption[];
 };
 
 type Props = {
@@ -62,12 +67,22 @@ type Props = {
 
 const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
   const employees = relatedData?.employees ?? [];
+  const categories = relatedData?.categories ?? [];
+  const subCategories = relatedData?.subCategories ?? [];
+
+  // Looked up once for defaultValues — figures out whether the expense
+  // being edited (if any) belongs to the salary category, since `data`
+  // itself no longer carries that as a literal string.
+  const initialCategory = data?.categoryId
+    ? categories.find((c) => c.id === data.categoryId)
+    : undefined;
 
   const {
     register,
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ExpenseFormInput, any, ExpenseSchema>({
     resolver: zodResolver(expenseSchema),
@@ -76,7 +91,9 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
       ? {
           id: data.id,
           title: data.title,
-          category: data.category,
+          categoryId: data.categoryId,
+          subCategoryId: data.subCategoryId ?? undefined,
+          isSalary: initialCategory?.isSalary ?? false,
           amount:
             data.amount !== null && data.amount !== undefined
               ? Number(data.amount)
@@ -86,7 +103,7 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
           notes: data.notes ?? "",
 
           salaryEntries:
-            data.category === "SALARIES" && data.employeeId
+            initialCategory?.isSalary && data.employeeId
               ? [
                   {
                     employeeId: data.employeeId,
@@ -97,7 +114,9 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
         }
       : {
           title: "",
-          category: "OTHER",
+          categoryId: undefined,
+          subCategoryId: undefined,
+          isSalary: false,
           amount: undefined,
           method: "CASH",
           date: todayInSalonTz(),
@@ -111,10 +130,18 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
     name: "salaryEntries",
   });
 
-  const category = watch("category");
+  const categoryId = watch("categoryId");
   const date = watch("date");
+  const isSalary = watch("isSalary");
 
-  const isSalary = category === "SALARIES";
+  const categoryOptions = categories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  const subCategoryOptionsForCategory = subCategories
+    .filter((sc) => sc.categoryId === categoryId)
+    .map((sc) => ({ value: sc.id, label: sc.name }));
 
   const [state, formAction, pending] = useActionState(
     type === "create" ? createExpense : updateExpense,
@@ -199,7 +226,6 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
    */
   const salaryTotal = fields.reduce((total, _, index) => {
     const amount = Number(watch(`salaryEntries.${index}.amount`) || 0);
-
     return total + amount;
   }, 0);
 
@@ -226,32 +252,74 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
 
       {/* Category + Method */}
       <div className="flex flex-col md:flex-row gap-4">
-        <Controller
-          name="category"
-          control={control}
-          render={({ field }) => (
-            <CustomSelect
-              label="Category"
-              options={categoryOptions}
-              value={field.value ?? "OTHER"}
-              onChange={field.onChange}
-            />
-          )}
-        />
+        <div className="flex-1">
+          <Controller
+            name="categoryId"
+            control={control}
+            render={({ field }) => (
+              <CustomSelect
+                label="Category"
+                options={categoryOptions}
+                value={field.value ?? ""}
+                onChange={(val) => {
+                  field.onChange(val);
 
-        <Controller
-          name="method"
-          control={control}
-          render={({ field }) => (
-            <CustomSelect
-              label="Paid via"
-              options={methodOptions}
-              value={field.value ?? "CASH"}
-              onChange={field.onChange}
-            />
+                  // Category changed — a previously-picked subcategory may
+                  // no longer apply, so clear it.
+                  setValue("subCategoryId", undefined);
+
+                  const picked = categories.find((c) => c.id === val);
+                  setValue("isSalary", picked?.isSalary ?? false);
+                }}
+              />
+            )}
+          />
+          {errors.categoryId && (
+            <p className="mt-1 text-xs text-red-500">
+              {errors.categoryId.message}
+            </p>
           )}
-        />
+        </div>
+
+        <div className="flex-1">
+          <Controller
+            name="method"
+            control={control}
+            render={({ field }) => (
+              <CustomSelect
+                label="Paid via"
+                options={methodOptions}
+                value={field.value ?? "CASH"}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
       </div>
+
+      {/* Subcategory — every category except Salaries */}
+      {!isSalary && categoryId && (
+        <div className="flex flex-col gap-1.5">
+          <Controller
+            name="subCategoryId"
+            control={control}
+            render={({ field }) =>
+              subCategoryOptionsForCategory.length > 0 ? (
+                <CustomSelect
+                  label="Subcategory (optional)"
+                  options={subCategoryOptionsForCategory}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                />
+              ) : (
+                <p className="text-xs text-gray-400">
+                  No subcategories set up for this category yet.
+                </p>
+              )
+            }
+          />
+        </div>
+      )}
 
       {/* ================================================= */}
       {/* SALARY SECTION */}
@@ -383,7 +451,7 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
               </span>
 
               <span className="text-lg font-bold text-gray-800">
-              AED {salaryTotal.toFixed(2)}
+                AED {salaryTotal.toFixed(2)}
               </span>
             </div>
           )}

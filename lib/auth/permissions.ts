@@ -31,6 +31,7 @@ export const ALL_PERMISSIONS = [
 
   "user:manage",
   "user:create-admin",
+  "expense:manage-categories",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -45,6 +46,7 @@ const ADMIN_ONLY: Permission[] = [
   "customer:delete",
   "employee:manage",
   "user:manage",
+  "expense:manage-categories",
 ];
 
 // Permissions ADMIN + OWNER have, but MANAGER/RECEPTIONIST don't.
@@ -57,6 +59,7 @@ const OWNER_ONLY: Permission[] = [
   "customer:delete",
   "employee:manage",
   "user:manage",
+  "expense:manage-categories",
 ];
 
 // Permissions MANAGER has but RECEPTIONIST doesn't.
@@ -73,6 +76,7 @@ const RECEPTIONIST_DENY: Permission[] = [
   "customer:update",
   "user:manage",
   "user:create-admin",
+  "expense:manage-categories",
 ];
 
 function buildMatrix(): Record<Role, Set<Permission>> {
@@ -132,4 +136,9 @@ export function assignableRoles(actorRole: Role): Role[] {
     default:
       return [];
   }
+}
+
+// Add alongside assignableRoles and whatever exports permissions.ts already has
+export function canManageExpenseCategories(role: Role): boolean {
+  return role === "OWNER" || role === "ADMIN";
 }

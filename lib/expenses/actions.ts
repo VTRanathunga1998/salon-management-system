@@ -50,13 +50,48 @@ export async function createExpense(
 
   const values = parsed.data;
 
+  const category = await prisma.expenseCategory.findUnique({
+    where: { id: values.categoryId },
+    select: { id: true, isActive: true, isSalary: true },
+  });
+
+  if (!category) {
+    return {
+      success: false,
+      error: true,
+      message: "Selected category is invalid.",
+    };
+  }
+
+  if (!category.isActive) {
+    return {
+      success: false,
+      error: true,
+      message: "This category has been removed. Please pick another.",
+    };
+  }
+
+  if (values.subCategoryId) {
+    const subCategory = await prisma.expenseSubCategory.findUnique({
+      where: { id: values.subCategoryId },
+      select: { id: true, categoryId: true, isActive: true },
+    });
+
+    if (
+      !subCategory ||
+      !subCategory.isActive ||
+      subCategory.categoryId !== category.id
+    ) {
+      return {
+        success: false,
+        error: true,
+        message: "Selected subcategory doesn't match the chosen category.",
+      };
+    }
+  }
+
   try {
-    /**
-     * =====================================================
-     * SALARY BATCH
-     * =====================================================
-     */
-    if (values.category === "SALARIES") {
+    if (category.isSalary) {
       const salaryEntries = values.salaryEntries ?? [];
 
       if (salaryEntries.length === 0) {
@@ -69,17 +104,11 @@ export async function createExpense(
 
       const salaryMonth = getSalaryMonth(values.date);
 
-      /**
-       * Extra server-side duplicate protection.
-       *
-       * Zod already prevents duplicates inside
-       * the submitted batch, but we also check DB.
-       */
       const employeeIds = salaryEntries.map((entry) => entry.employeeId);
 
       const existingSalaries = await prisma.expense.findMany({
         where: {
-          category: "SALARIES",
+          categoryId: category.id,
           salaryMonth,
           employeeId: {
             in: employeeIds,
@@ -123,10 +152,6 @@ export async function createExpense(
         };
       }
 
-      /**
-       * Verify that all employees actually exist
-       * and are active.
-       */
       const employees = await prisma.employee.findMany({
         where: {
           id: {
@@ -148,20 +173,11 @@ export async function createExpense(
         };
       }
 
-      /**
-       * Calculate total salary.
-       */
       const totalSalary = salaryEntries.reduce(
         (sum, entry) => sum + entry.amount,
         0,
       );
 
-      /**
-       * Create ALL salary records atomically.
-       *
-       * If one fails, the entire transaction
-       * is rolled back.
-       */
       await prisma.$transaction(async (tx) => {
         for (const entry of salaryEntries) {
           const employee = employees.find((e) => e.id === entry.employeeId);
@@ -170,7 +186,7 @@ export async function createExpense(
             data: {
               title: values.title,
 
-              category: "SALARIES",
+              categoryId: category.id,
 
               amount: entry.amount,
 
@@ -183,6 +199,9 @@ export async function createExpense(
               employeeId: entry.employeeId,
 
               salaryMonth,
+
+              // Salaries never carry a subcategory.
+              subCategoryId: null,
             },
           });
         }
@@ -197,17 +216,11 @@ export async function createExpense(
       };
     }
 
-    /**
-     * =====================================================
-     * NORMAL EXPENSE
-     * =====================================================
-     */
-
     await prisma.expense.create({
       data: {
         title: values.title,
 
-        category: values.category,
+        categoryId: category.id,
 
         amount: values.amount ?? 0,
 
@@ -216,6 +229,8 @@ export async function createExpense(
         date: startOfDayInSalonTz(values.date),
 
         notes: values.notes || null,
+
+        subCategoryId: values.subCategoryId || null,
       },
     });
 
@@ -227,13 +242,6 @@ export async function createExpense(
   } catch (err) {
     console.error("[createExpense]", err);
 
-    /**
-     * Prisma unique constraint.
-     *
-     * This is the final database-level protection
-     * against paying the same employee twice
-     * in the same month.
-     */
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
@@ -264,7 +272,7 @@ export async function updateExpense(
   data: unknown,
 ): Promise<CurrentState> {
   try {
-    await requirePermission("expense:update"); // NEW
+    await requirePermission("expense:update");
   } catch {
     return {
       success: false,
@@ -272,6 +280,7 @@ export async function updateExpense(
       message: "You don't have permission to edit expenses.",
     };
   }
+
   const parsed = expenseSchema.safeParse(data);
 
   if (!parsed.success) {
@@ -295,6 +304,9 @@ export async function updateExpense(
       where: {
         id: parsed.data.id,
       },
+      include: {
+        category: { select: { id: true, isSalary: true } },
+      },
     });
 
     if (!existing) {
@@ -303,6 +315,54 @@ export async function updateExpense(
         error: true,
         message: "Expense not found.",
       };
+    }
+
+    // Authoritative check for the NEWLY submitted category — never trust
+    // a client-sent isSalary flag for branching logic, only for the
+    // friendlier Zod message. Always re-derive from the database.
+    const newCategory = await prisma.expenseCategory.findUnique({
+      where: { id: parsed.data.categoryId },
+      select: { id: true, isActive: true, isSalary: true },
+    });
+
+    if (!newCategory) {
+      return {
+        success: false,
+        error: true,
+        message: "Selected category is invalid.",
+      };
+    }
+
+    if (!newCategory.isActive) {
+      return {
+        success: false,
+        error: true,
+        message: "This category has been removed. Please pick another.",
+      };
+    }
+
+    const wasSalary = existing.category.isSalary;
+    const isNowSalary = newCategory.isSalary;
+
+    // If a subcategory was selected, make sure it actually belongs to
+    // the chosen category.
+    if (parsed.data.subCategoryId) {
+      const subCategory = await prisma.expenseSubCategory.findUnique({
+        where: { id: parsed.data.subCategoryId },
+        select: { id: true, categoryId: true, isActive: true },
+      });
+
+      if (
+        !subCategory ||
+        !subCategory.isActive ||
+        subCategory.categoryId !== newCategory.id
+      ) {
+        return {
+          success: false,
+          error: true,
+          message: "Selected subcategory doesn't match the chosen category.",
+        };
+      }
     }
 
     /**
@@ -319,16 +379,22 @@ export async function updateExpense(
      * But we do NOT allow changing the employee
      * through this normal expense update.
      */
-    if (
-      existing.category === "SALARIES" ||
-      parsed.data.category === "SALARIES"
-    ) {
-      if (existing.category !== "SALARIES") {
+    if (wasSalary || isNowSalary) {
+      if (!wasSalary) {
         return {
           success: false,
           error: true,
           message:
             "Salary expenses cannot be created by converting an existing expense. Create a new salary record instead.",
+        };
+      }
+
+      if (!isNowSalary) {
+        return {
+          success: false,
+          error: true,
+          message:
+            "A salary expense can't be switched to a different category. Delete it and record a new expense instead.",
         };
       }
 
@@ -353,7 +419,7 @@ export async function updateExpense(
        */
       const duplicate = await prisma.expense.findFirst({
         where: {
-          category: "SALARIES",
+          categoryId: existing.category.id,
 
           employeeId: existing.employeeId,
 
@@ -389,9 +455,12 @@ export async function updateExpense(
 
           notes: parsed.data.notes || null,
 
-          category: "SALARIES",
+          categoryId: existing.category.id,
 
           salaryMonth,
+
+          // Salaries never carry a subcategory.
+          subCategoryId: null,
         },
       });
 
@@ -416,7 +485,7 @@ export async function updateExpense(
       data: {
         title: parsed.data.title,
 
-        category: parsed.data.category,
+        categoryId: newCategory.id,
 
         amount: parsed.data.amount ?? 0,
 
@@ -426,12 +495,9 @@ export async function updateExpense(
 
         notes: parsed.data.notes || null,
 
-        /**
-         * Normal expenses must never
-         * accidentally retain salary data.
-         */
         employeeId: null,
         salaryMonth: null,
+        subCategoryId: parsed.data.subCategoryId || null,
       },
     });
 
