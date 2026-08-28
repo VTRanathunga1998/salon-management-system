@@ -1,5 +1,3 @@
-import { ExpenseCategory } from "@prisma/client";
-
 import { getExpenseReportData } from "@/lib/reports/expense";
 import ExpenseReportDashboard from "@/components/reports/ExpenseReportDashboard";
 import {
@@ -33,41 +31,24 @@ const ExpenseReportPage = async ({
 }) => {
   const params = await searchParams;
 
-  // Default range = current month in salon timezone
   const defaultFrom = firstDayOfCurrentMonthInSalonTz();
   const defaultTo = todayInSalonTz();
-
-  // Get requested dates
 
   const fromDate = isValidDateString(params.from) ? params.from : defaultFrom;
 
   const toDate = isValidDateString(params.to) ? params.to : defaultTo;
 
-  // Convert salon dates → absolute UTC instants
-
   const from = startOfDayInSalonTz(fromDate);
   const to = endOfDayInSalonTz(toDate);
 
-  // Category
-
-  const category =
-    params.category && params.category !== "ALL"
-      ? Object.values(ExpenseCategory).includes(
-          params.category as ExpenseCategory,
-        )
-        ? (params.category as ExpenseCategory)
-        : undefined
-      : undefined;
-
-  // Get report
+  const categoryId =
+    params.category && params.category !== "ALL" ? params.category : undefined;
 
   const report = await getExpenseReportData({
     from,
     to,
-    category,
+    categoryId,
   });
-
-  // console.log(report);
 
   return (
     <div className="flex-1 bg-white rounded-md md:p-4 mt-0">
@@ -75,7 +56,7 @@ const ExpenseReportPage = async ({
         report={report}
         from={from}
         to={to}
-        selectedCategory={category ?? "ALL"}
+        selectedCategory={categoryId ?? "ALL"}
       />
     </div>
   );

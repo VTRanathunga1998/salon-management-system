@@ -10,10 +10,9 @@ import { serializeData } from "@/lib/utils/serialize";
 import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type ExpenseList = Expense & {
-  employee: {
-    id: string;
-    name: string;
-  };
+  employee: { id: string; name: string } | null;
+  category: { id: string; name: string; isSalary: boolean };
+  subCategory: { id: string; name: string } | null;
 };
 
 const formatLabel = (v: string) =>
@@ -58,12 +57,13 @@ const ExpenseListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[#F1F0FF]"
     >
       <td className="px-2 md:px-0 py-2">
-        {item.category === "SALARIES" && item.employee
+        {item.category.isSalary && item.employee
           ? `${item.title} - ${item.employee.name}`
           : item.title}
       </td>
       <td className="px-2 md:px-0 py-2 hidden md:table-cell">
-        {formatLabel(item.category)}
+        {item.category.name}
+        {item.subCategory ? ` · ${item.subCategory.name}` : ""}
       </td>
       <td className="px-2 md:px-0 py-2">
         AED {Number(item.amount).toFixed(2)}
@@ -100,10 +100,13 @@ const ExpenseListPage = async ({
       where: query,
       include: {
         employee: {
-          select: {
-            id: true,
-            name: true,
-          },
+          select: { id: true, name: true },
+        },
+        category: {
+          select: { id: true, name: true, isSalary: true },
+        },
+        subCategory: {
+          select: { id: true, name: true },
         },
       },
       orderBy: { date: "desc" },
@@ -122,12 +125,10 @@ const ExpenseListPage = async ({
       },
     }),
   ]);
-  // console.log(data);
+
   return (
     <div className="flex-1 bg-white p-6 mt-0 space-y-4 md:p-4">
-      {/* ── Top bar ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-800">
             All Expenses
@@ -143,7 +144,6 @@ const ExpenseListPage = async ({
         </div>
       </div>
 
-      {/* CONTENT */}
       {count === 0 ? (
         <EmptyState
           title="No expenses found"

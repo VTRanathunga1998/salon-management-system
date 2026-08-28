@@ -1,83 +1,143 @@
 import { prisma } from "@/lib/prisma";
-import { ExpenseCategory } from "@prisma/client";
 import { toDateInputInSalonTz, toMonthInSalonTz } from "@/lib/utils/timezone";
 
 export interface ExpenseReportFilters {
   from: Date;
   to: Date;
-  category?: ExpenseCategory; // undefined = all categories
+  categoryId?: string; // Expense.categoryId is a String FK to ExpenseCategory.id
 }
 
 export async function getExpenseReportData({
   from,
   to,
-  category,
+  categoryId,
 }: ExpenseReportFilters) {
   const expenses = await prisma.expense.findMany({
     where: {
       date: { gte: from, lte: to },
-      ...(category ? { category } : {}),
+      ...(categoryId ? { categoryId } : {}),
+    },
+    include: {
+      category: true,
     },
     orderBy: { date: "desc" },
   });
+  const totalAmount = expenses.reduce(
+    (sum, expense) => sum + Number(expense.amount),
+    0,
+  );
 
-  const totalAmount = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  // ─────────────────────────────────────────────
+  // Category breakdown
+  // ─────────────────────────────────────────────
 
   const categoryMap = new Map<string, number>();
-  for (const e of expenses) {
+
+  for (const expense of expenses) {
+    const categoryName = expense.category.name;
+
     categoryMap.set(
-      e.category,
-      (categoryMap.get(e.category) ?? 0) + Number(e.amount),
+      categoryName,
+      (categoryMap.get(categoryName) ?? 0) + Number(expense.amount),
     );
   }
+
   const categoryBreakdown = Array.from(categoryMap.entries())
-    .map(([cat, amount]) => ({ category: cat, amount }))
+    .map(([category, amount]) => ({
+      category,
+      amount,
+    }))
     .sort((a, b) => b.amount - a.amount);
 
+  // ─────────────────────────────────────────────
+  // Payment method breakdown
+  // ─────────────────────────────────────────────
+
   const methodMap = new Map<string, number>();
-  for (const e of expenses) {
-    methodMap.set(e.method, (methodMap.get(e.method) ?? 0) + Number(e.amount));
+
+  for (const expense of expenses) {
+    methodMap.set(
+      expense.method,
+      (methodMap.get(expense.method) ?? 0) + Number(expense.amount),
+    );
   }
+
   const methodBreakdown = Array.from(methodMap.entries()).map(
-    ([method, amount]) => ({ method, amount }),
+    ([method, amount]) => ({
+      method,
+      amount,
+    }),
   );
+
+  // ─────────────────────────────────────────────
+  // Chart granularity
+  // ─────────────────────────────────────────────
 
   const rangeDays = Math.max(
     1,
     Math.ceil((to.getTime() - from.getTime()) / 86_400_000),
   );
+
   const granularity: "day" | "month" = rangeDays <= 31 ? "day" : "month";
 
-  // CHANGED: was `d.toISOString().slice(0, 10 / 0, 7)` — pure UTC, ignoring
-  // the salon's timezone entirely. Now buckets by the salon's calendar
-  // day/month, so an expense dated "15 Jan" in Dubai lands on the "15 Jan"
-  // bar, not "14 Jan" (which is what UTC slicing was silently doing).
-  const bucketKey = (d: Date) =>
-    granularity === "day" ? toDateInputInSalonTz(d) : toMonthInSalonTz(d);
+  // ─────────────────────────────────────────────
+  // Salon timezone buckets
+  // ─────────────────────────────────────────────
+
+  const bucketKey = (date: Date) =>
+    granularity === "day" ? toDateInputInSalonTz(date) : toMonthInSalonTz(date);
 
   const seriesMap = new Map<string, number>();
-  for (const e of expenses) {
-    const key = bucketKey(new Date(e.date));
-    seriesMap.set(key, (seriesMap.get(key) ?? 0) + Number(e.amount));
+
+  for (const expense of expenses) {
+    const key = bucketKey(new Date(expense.date));
+
+    seriesMap.set(key, (seriesMap.get(key) ?? 0) + Number(expense.amount));
   }
+
   const series = Array.from(seriesMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, amount]) => ({ date, amount }));
+    .map(([date, amount]) => ({
+      date,
+      amount,
+    }));
+
+  // ─────────────────────────────────────────────
+  // Return report
+  // ─────────────────────────────────────────────
 
   return {
-    range: { from, to, granularity },
-    summary: { totalAmount, count: expenses.length },
+    range: {
+      from,
+      to,
+      granularity,
+    },
+
+    summary: {
+      totalAmount,
+      count: expenses.length,
+    },
+
     categoryBreakdown,
+
     methodBreakdown,
+
     series,
-    expenses: expenses.map((e) => ({
-      id: e.id,
-      title: e.title,
-      category: e.category,
-      amount: Number(e.amount),
-      method: e.method,
-      date: e.date,
-      notes: e.notes,
+
+    expenses: expenses.map((expense) => ({
+      id: expense.id,
+      title: expense.title,
+
+      // Return category name instead of the old enum
+      category: expense.category.name,
+
+      // Useful if the UI needs the category ID
+      categoryId: expense.categoryId,
+
+      amount: Number(expense.amount),
+      method: expense.method,
+      date: expense.date,
+      notes: expense.notes,
     })),
   };
 }

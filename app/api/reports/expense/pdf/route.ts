@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import React from "react";
 import { renderToBuffer, DocumentProps } from "@react-pdf/renderer";
-import { ExpenseCategory } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getExpenseReportData } from "@/lib/reports/expense";
 import ExpenseReportPdfDocument from "@/lib/reports/ExpenseReportPdfDocument";
 import {
@@ -9,16 +9,6 @@ import {
   endOfDayInSalonTz,
   todayInSalonTz,
 } from "@/lib/utils/timezone";
-
-const labels: Record<string, string> = {
-  RENT: "Rent",
-  UTILITIES: "Utilities",
-  SUPPLIES: "Supplies",
-  SALARIES: "Salaries",
-  MARKETING: "Marketing",
-  MAINTENANCE: "Maintenance",
-  OTHER: "Other",
-};
 
 function isValidDateString(value: string | null): value is string {
   return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -35,7 +25,6 @@ export async function GET(req: NextRequest) {
   const toParam = searchParams.get("to");
   const categoryParam = searchParams.get("category") ?? undefined;
 
-  // not salon-local. Now anchored explicitly via timezone.ts.
   const fromDate = isValidDateString(fromParam)
     ? fromParam
     : firstDayOfCurrentMonthInSalonTz();
@@ -44,11 +33,20 @@ export async function GET(req: NextRequest) {
   const from = startOfDayInSalonTz(fromDate);
   const to = endOfDayInSalonTz(toDate);
 
-  const category = categoryParam
-    ? (categoryParam as ExpenseCategory)
+  const categoryId = categoryParam || undefined;
+
+  // Category is now a dynamic row, not a fixed enum — look up its
+  // display name for the PDF header instead of a static labels map.
+  const categoryLabel = categoryId
+    ? (
+        await prisma.expenseCategory.findUnique({
+          where: { id: categoryId },
+          select: { name: true },
+        })
+      )?.name
     : undefined;
 
-  const report = await getExpenseReportData({ from, to, category });
+  const report = await getExpenseReportData({ from, to, categoryId });
 
   const fromLabel = fromDate;
   const toLabel = toDate;
@@ -58,7 +56,7 @@ export async function GET(req: NextRequest) {
       report,
       from: fromLabel,
       to: toLabel,
-      categoryLabel: category ? labels[category] : undefined,
+      categoryLabel,
     }) as React.ReactElement<DocumentProps>,
   );
 
