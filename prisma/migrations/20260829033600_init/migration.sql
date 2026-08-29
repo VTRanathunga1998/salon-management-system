@@ -16,9 +16,6 @@ CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'ISSUED', 'PARTIALLY_PAID', 'PAID'
 -- CreateEnum
 CREATE TYPE "DiscountType" AS ENUM ('FIXED', 'PERCENTAGE');
 
--- CreateEnum
-CREATE TYPE "ExpenseCategory" AS ENUM ('RENT', 'UTILITIES', 'SUPPLIES', 'SALARIES', 'MARKETING', 'MAINTENANCE', 'OTHER');
-
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -144,6 +141,19 @@ CREATE TABLE "Invoice" (
 );
 
 -- CreateTable
+CREATE TABLE "InvoiceDueCollection" (
+    "id" TEXT NOT NULL,
+    "collectingInvoiceId" TEXT NOT NULL,
+    "sourceInvoiceId" TEXT NOT NULL,
+    "sourceInvoiceNumber" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "method" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InvoiceDueCollection_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "InvoiceItem" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
@@ -184,7 +194,7 @@ CREATE TABLE "Payment" (
 CREATE TABLE "Expense" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "category" "ExpenseCategory" NOT NULL DEFAULT 'OTHER',
+    "categoryId" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "method" "PaymentMethod" NOT NULL DEFAULT 'CASH',
     "date" TIMESTAMP(3) NOT NULL,
@@ -194,8 +204,36 @@ CREATE TABLE "Expense" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "employeeId" TEXT,
     "salaryMonth" TEXT,
+    "subCategoryId" TEXT,
 
     CONSTRAINT "Expense_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ExpenseCategory" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "isSalary" BOOLEAN NOT NULL DEFAULT false,
+    "isProtected" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ExpenseCategory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ExpenseSubCategory" (
+    "id" TEXT NOT NULL,
+    "categoryId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ExpenseSubCategory_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -283,10 +321,25 @@ CREATE INDEX "Payment_invoiceId_idx" ON "Payment"("invoiceId");
 CREATE INDEX "Expense_date_idx" ON "Expense"("date");
 
 -- CreateIndex
-CREATE INDEX "Expense_category_idx" ON "Expense"("category");
+CREATE INDEX "Expense_categoryId_idx" ON "Expense"("categoryId");
+
+-- CreateIndex
+CREATE INDEX "Expense_subCategoryId_idx" ON "Expense"("subCategoryId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Expense_employeeId_salaryMonth_key" ON "Expense"("employeeId", "salaryMonth");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ExpenseCategory_name_key" ON "ExpenseCategory"("name");
+
+-- CreateIndex
+CREATE INDEX "ExpenseCategory_isActive_idx" ON "ExpenseCategory"("isActive");
+
+-- CreateIndex
+CREATE INDEX "ExpenseSubCategory_categoryId_idx" ON "ExpenseSubCategory"("categoryId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ExpenseSubCategory_categoryId_name_key" ON "ExpenseSubCategory"("categoryId", "name");
 
 -- CreateIndex
 CREATE INDEX "EmployeeService_serviceId_idx" ON "EmployeeService"("serviceId");
@@ -322,6 +375,9 @@ ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_customerId_fkey" FOREIGN KEY ("cus
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "InvoiceDueCollection" ADD CONSTRAINT "InvoiceDueCollection_collectingInvoiceId_fkey" FOREIGN KEY ("collectingInvoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -337,10 +393,25 @@ ALTER TABLE "InvoiceItemEmployee" ADD CONSTRAINT "InvoiceItemEmployee_employeeId
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ExpenseCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_subCategoryId_fkey" FOREIGN KEY ("subCategoryId") REFERENCES "ExpenseSubCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExpenseCategory" ADD CONSTRAINT "ExpenseCategory_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExpenseSubCategory" ADD CONSTRAINT "ExpenseSubCategory_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ExpenseCategory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExpenseSubCategory" ADD CONSTRAINT "ExpenseSubCategory_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeService" ADD CONSTRAINT "EmployeeService_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
