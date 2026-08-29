@@ -20,8 +20,8 @@ type AppointmentList = Appointment & {
   services: {
     id: string;
     serviceId: string;
-    employeeId: string | null;
     serviceNameSnapshot: string;
+    employees: { employeeId: string }[];
   }[];
 };
 
@@ -125,8 +125,8 @@ const AppointmentListPage = async ({
           select: {
             id: true,
             serviceId: true,
-            employeeId: true,
             serviceNameSnapshot: true,
+            employees: { select: { employeeId: true } },
           },
         },
       },
@@ -159,7 +159,6 @@ const AppointmentListPage = async ({
 
           <div className="flex items-center gap-4 lg:self-end">
             <TableSearch />
-            {/* <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto"> */}
           </div>
         </div>
 

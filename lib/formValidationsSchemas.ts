@@ -191,7 +191,7 @@ function minutesSinceMidnight(time: string) {
 
 export const appointmentServiceSchema = z.object({
   serviceId: z.string().min(1, "Service is required"),
-  employeeId: z.string().optional(),
+  employeeIds: z.array(z.string()).default([]),
 });
 
 export const appointmentSchema = z

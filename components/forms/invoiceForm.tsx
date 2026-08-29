@@ -20,7 +20,7 @@ import InputField from "@/components/InputField";
 import CustomSelect from "@/components/CustomSelect";
 import CustomerCombobox from "@/components/Customercombobox";
 import ServiceCombobox from "@/components/ServiceCombobox";
-import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect ";
+import EmployeeMultiSelect from "@/components/invoice/Employeemultiselect";
 import { toast } from "react-toastify";
 import InvoiceSuccessPanel from "@/components/invoice/InvoiceSuccessPanel";
 import { AlertCircle } from "lucide-react";

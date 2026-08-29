@@ -61,9 +61,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           services: services.map((s) => ({ ...s, price: Number(s.price) })),
         };
 
-        // NEW — build invoice seed data from an appointment. Runs after
-        // relatedData is assembled since it doesn't need it, only needs
-        // the appointment itself.
         if (type === "convert") {
           const appointmentId = data?.appointmentId ?? id;
           if (!appointmentId) {
@@ -77,7 +74,12 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             where: { id: String(appointmentId) },
             include: {
               customer: { select: { id: true } },
-              services: { select: { serviceId: true, employeeId: true } },
+              services: {
+                select: {
+                  serviceId: true,
+                  employees: { select: { employeeId: true } },
+                },
+              },
             },
           });
 
@@ -91,8 +93,6 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             appointment.status === "CANCELLED" ||
             appointment.status === "COMPLETED"
           ) {
-            // Already converted / cancelled — don't render a button that
-            // would just fail on submit.
             return null;
           }
 
@@ -101,7 +101,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             appointmentId: appointment.id,
             items: appointment.services.map((s) => ({
               serviceId: s.serviceId,
-              employeeIds: s.employeeId ? [s.employeeId] : [],
+              employeeIds: s.employees.map((e) => e.employeeId),
               quantity: 1,
               customPrice: undefined,
             })),
@@ -109,6 +109,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         }
         break;
       }
+
       case "appointment": {
         const [customers, employees, services] = await Promise.all([
           prisma.customer.findMany({
@@ -138,8 +139,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
                 select: {
                   id: true,
                   serviceId: true,
-                  employeeId: true,
                   serviceNameSnapshot: true,
+                  employees: { select: { employeeId: true } },
                 },
               },
             },
@@ -151,6 +152,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         break;
       }
+
       case "employee": {
         const services = await prisma.service.findMany({
           where:
@@ -177,6 +179,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
         break;
       }
+
       case "expense": {
         const [employees, categories, subCategories] = await Promise.all([
           prisma.employee.findMany({

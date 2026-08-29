@@ -102,10 +102,18 @@ CREATE TABLE "AppointmentService" (
     "id" TEXT NOT NULL,
     "appointmentId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
-    "employeeId" TEXT,
     "serviceNameSnapshot" TEXT NOT NULL,
 
     CONSTRAINT "AppointmentService_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppointmentServiceEmployee" (
+    "id" TEXT NOT NULL,
+    "appointmentServiceId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+
+    CONSTRAINT "AppointmentServiceEmployee_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -288,7 +296,10 @@ CREATE INDEX "AppointmentService_appointmentId_idx" ON "AppointmentService"("app
 CREATE INDEX "AppointmentService_serviceId_idx" ON "AppointmentService"("serviceId");
 
 -- CreateIndex
-CREATE INDEX "AppointmentService_employeeId_idx" ON "AppointmentService"("employeeId");
+CREATE INDEX "AppointmentServiceEmployee_employeeId_idx" ON "AppointmentServiceEmployee"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppointmentServiceEmployee_appointmentServiceId_employeeId_key" ON "AppointmentServiceEmployee"("appointmentServiceId", "employeeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "InvoiceCounter_seriesKey_key" ON "InvoiceCounter"("seriesKey");
@@ -366,7 +377,10 @@ ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_appointmentI
 ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AppointmentService" ADD CONSTRAINT "AppointmentService_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AppointmentServiceEmployee" ADD CONSTRAINT "AppointmentServiceEmployee_appointmentServiceId_fkey" FOREIGN KEY ("appointmentServiceId") REFERENCES "AppointmentService"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppointmentServiceEmployee" ADD CONSTRAINT "AppointmentServiceEmployee_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

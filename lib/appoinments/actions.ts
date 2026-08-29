@@ -11,16 +11,6 @@ type ActionState = {
   message?: string;
 };
 
-// Rejects a booking if any of its services overlap an existing,
-// non-cancelled appointment for the SAME service. Different services can
-// happily share a time slot (different customers, presumably different
-// staff) — it's only the same service booked twice at once that's a
-// conflict.
-//
-// NOTE: this is a check-then-write validation, not a DB-level constraint.
-// Two near-simultaneous submissions could theoretically both pass this
-// check before either commits. Acceptable for a single-location salon;
-// worth knowing if this ever needs to be bulletproof under concurrency.
 async function assertNoServiceOverlap({
   date,
   startTime,
@@ -87,9 +77,6 @@ export async function createAppointment(
     const startTime = combineDateAndTime(data.date, data.startTime);
     const endTime = combineDateAndTime(data.date, data.endTime);
 
-    // console.log("[DEBUG] raw input:", data.date, data.startTime, data.endTime);
-    // console.log("[DEBUG] computed:", { date, startTime, endTime });
-
     await assertNoServiceOverlap({
       date,
       startTime,
@@ -108,8 +95,12 @@ export async function createAppointment(
         services: {
           create: data.services.map((s) => ({
             serviceId: s.serviceId,
-            employeeId: s.employeeId || null,
             serviceNameSnapshot: serviceMap.get(s.serviceId)!.name,
+            employees: {
+              create: (s.employeeIds ?? []).map((employeeId) => ({
+                employeeId,
+              })),
+            },
           })),
         },
       },
@@ -117,7 +108,6 @@ export async function createAppointment(
 
     return { success: true, error: false, message: "Appointment booked." };
   } catch (err) {
-    // console.error("[createAppointment]", err);
     const message =
       err instanceof Error ? err.message : "Failed to book appointment.";
     return { success: false, error: true, message };
@@ -186,6 +176,9 @@ export async function updateAppointment(
       });
     }
 
+    // NOTE: deleteMany on AppointmentService cascades to
+    // AppointmentServiceEmployee (onDelete: Cascade in schema), so the old
+    // junction rows are cleaned up automatically — no separate delete needed.
     await prisma.$transaction([
       prisma.appointmentService.deleteMany({
         where: { appointmentId: data.id },
@@ -208,8 +201,12 @@ export async function updateAppointment(
           services: {
             create: data.services.map((s) => ({
               serviceId: s.serviceId,
-              employeeId: s.employeeId || null,
               serviceNameSnapshot: serviceMap.get(s.serviceId)!.name,
+              employees: {
+                create: (s.employeeIds ?? []).map((employeeId) => ({
+                  employeeId,
+                })),
+              },
             })),
           },
         },
@@ -218,7 +215,6 @@ export async function updateAppointment(
 
     return { success: true, error: false, message: "Appointment updated." };
   } catch (err) {
-    // console.error("[updateAppointment]", err);
     const message =
       err instanceof Error ? err.message : "Failed to update appointment.";
     return { success: false, error: true, message };
@@ -237,7 +233,6 @@ export async function deleteAppointment(
     await prisma.appointment.delete({ where: { id } });
     return { success: true, error: false, message: "Appointment deleted." };
   } catch (err) {
-    // console.error("[deleteAppointment]", err);
     return {
       success: false,
       error: true,

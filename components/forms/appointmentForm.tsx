@@ -31,6 +31,7 @@ import {
   toTimeInputInSalonTz,
 } from "@/lib/utils/timezone";
 import AppointmentServiceCombobox from "../Appointmentservicecombobox";
+import EmployeeMultiSelect from "../invoice/Employeemultiselect";
 
 type RelatedData = {
   customers: { id: string; name: string; phone: string }[];
@@ -73,8 +74,8 @@ const AppointmentForm = ({
           status: data.status,
           services: data.services?.map((s: any) => ({
             serviceId: s.serviceId,
-            employeeId: s.employeeId ?? "",
-          })) ?? [{ serviceId: "", employeeId: "" }],
+            employeeIds: s.employees?.map((e: any) => e.employeeId) ?? [],
+          })) ?? [{ serviceId: "", employeeIds: [] }],
           notes: data.notes ?? "",
           cancelReason: data.cancelReason ?? "",
         }
@@ -84,7 +85,7 @@ const AppointmentForm = ({
           startTime: "",
           endTime: "",
           status: AppointmentStatus.PENDING,
-          services: [{ serviceId: "", employeeId: "" }],
+          services: [{ serviceId: "", employeeIds: [] }],
           notes: "",
           cancelReason: "",
         },
@@ -234,7 +235,7 @@ const AppointmentForm = ({
           <label className="text-xs text-gray-500">Services</label>
           <button
             type="button"
-            onClick={() => append({ serviceId: "", employeeId: "" })}
+            onClick={() => append({ serviceId: "", employeeIds: [] })}
             className="text-xs font-medium text-[#7c6f2a] bg-[#FAE27C] hover:brightness-95 rounded-md px-2.5 py-1.5 cursor-pointer"
           >
             + Add service
@@ -271,23 +272,22 @@ const AppointmentForm = ({
                     )}
                   />
                 </div>
-
                 <div className="flex-1 min-w-0">
                   <Controller
-                    name={`services.${index}.employeeId` as const}
+                    name={`services.${index}.employeeIds` as const}
                     control={control}
                     render={({ field }) => (
-                      <CustomSelect
+                      <EmployeeMultiSelect
                         label="Staff (optional)"
                         placeholder="Assign later…"
                         options={employeeOptions}
-                        value={field.value ?? ""}
+                        value={field.value ?? []}
                         onChange={field.onChange}
+                        error={errors.services?.[index]?.employeeIds?.message}
                       />
                     )}
                   />
                 </div>
-
                 <div className="flex md:pt-6 shrink-0">
                   <button
                     type="button"

@@ -108,7 +108,7 @@ model Employee {
   salaryExpenses Expense[]
   invoiceItemAssignments InvoiceItemEmployee[]
   qualifiedServices      EmployeeService[]
-  appointmentServices    AppointmentService[]
+ appointmentServiceAssignments AppointmentServiceEmployee[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,14 +168,24 @@ model AppointmentService {
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
-  // Optional: staff may not be assigned at booking time, only once confirmed.
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employees AppointmentServiceEmployee[]
 
   serviceNameSnapshot String
 
   @@index([appointmentId])
   @@index([serviceId])
+}
+
+model AppointmentServiceEmployee {
+  id String @id @default(cuid())
+
+  appointmentServiceId String
+  appointmentService   AppointmentService @relation(fields: [appointmentServiceId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([appointmentServiceId, employeeId])
   @@index([employeeId])
 }
 
