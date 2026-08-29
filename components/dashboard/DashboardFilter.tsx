@@ -7,6 +7,7 @@ const RANGE_OPTIONS = [
   { label: "Today", value: "today" },
   { label: "This Week", value: "week" },
   { label: "This Month", value: "month" },
+  { label: "This Year", value: "year" },
   { label: "Custom", value: "custom" },
 ] as const;
 
