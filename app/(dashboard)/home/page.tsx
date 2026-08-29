@@ -9,15 +9,21 @@ type DashboardPageProps = {
   searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 };
 
-const VALID_RANGES: DashboardRangeType[] = ["today", "week", "month", "custom"];
+const VALID_RANGES: DashboardRangeType[] = [
+  "today",
+  "week",
+  "month",
+  "year",
+  "custom",
+];
 
 const RANGE_LABELS: Record<DashboardRangeType, string> = {
   today: "today",
   week: "this week",
   month: "this month",
+  year: "this year",
   custom: "the selected range",
 };
-
 const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
   const params = await searchParams;
 
