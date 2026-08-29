@@ -11,7 +11,7 @@ import {
   Receipt,
 } from "lucide-react";
 
-import type { CustomerReportData } from "@/lib/reports/customerReport";
+import type { CustomerReportData } from "@/lib/reports/customer/customerReport";
 import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type Props = {

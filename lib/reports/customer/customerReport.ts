@@ -1,5 +1,3 @@
-// lib/reports/customerReport.ts
-
 import { prisma } from "@/lib/prisma";
 import { InvoiceStatus } from "@prisma/client";
 

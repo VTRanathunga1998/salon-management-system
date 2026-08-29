@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getEmployeeReportData } from "@/lib/reports/employee";
-import EmployeeReportDashboard from "@/components/reports/EmployeeReportDashboard";
+import EmployeeReportDashboard from "@/components/reports/employee/EmployeeReportDashboard";
 import {
   endOfDayInSalonTz,
   startOfDayInSalonTz,
@@ -29,47 +29,19 @@ const EmployeeReportPage = async ({
 }) => {
   const params = await searchParams;
 
-  /*
-   * Get today's calendar date in the salon timezone.
-   *
-   * Example:
-   * today = "2026-08-13"
-   */
   const today = todayInSalonTz();
 
-  /*
-   * First day of the current month.
-   *
-   * Example:
-   * today = 2026-08-13
-   * defaultFromString = 2026-08-01
-   */
   const [year, month] = today.split("-");
 
   const defaultFromString = `${year}-${month}-01`;
   const defaultToString = today;
 
-  /*
-   * Validate URL date parameters.
-   *
-   * If invalid/missing, fall back to the current
-   * month and today in the salon timezone.
-   */
   const fromString = isValidDateString(params.from)
     ? params.from!
     : defaultFromString;
 
   const toString = isValidDateString(params.to) ? params.to! : defaultToString;
 
-  /*
-   * Convert salon calendar dates into absolute Date objects.
-   *
-   * from:
-   *   00:00:00.000 Asia/Colombo
-   *
-   * to:
-   *   23:59:59.999 Asia/Colombo
-   */
   const from = startOfDayInSalonTz(fromString);
   const to = endOfDayInSalonTz(toString);
 
@@ -99,12 +71,15 @@ const EmployeeReportPage = async ({
     }),
   ]);
 
+  // page.tsx
   return (
     <div className="flex-1 bg-white rounded-md md:p-4 mt-0">
       <EmployeeReportDashboard
         report={report}
         from={from}
         to={to}
+        fromLabel={fromString}
+        toLabel={toString}
         employees={employees}
         selectedEmployeeId={employeeId ?? "all"}
       />

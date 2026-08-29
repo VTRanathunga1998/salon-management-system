@@ -1,12 +1,13 @@
-import CustomerReportFilters from "@/components/reports/CustomerReportFilters";
-import CustomerReportTable from "@/components/reports/CustomerReportTable";
-import { getCustomerReport } from "@/lib/reports/customerReport";
+import CustomerReportFilters from "@/components/reports/customer/CustomerReportFilters";
+import CustomerReportTable from "@/components/reports/customer/CustomerReportTable";
+import { getCustomerReport } from "@/lib/reports/customer/customerReport";
 import {
   Users,
   Receipt,
   Banknote,
   WalletCards,
   AlertCircle,
+  Download,
 } from "lucide-react";
 
 type SearchParams = {
@@ -37,13 +38,39 @@ const CustomerReportPage = async ({ searchParams }: Props) => {
   const hasFilter =
     Boolean(params.search) || Boolean(params.from) || Boolean(params.to);
 
+  const reportQuery = new URLSearchParams();
+  if (params.search) reportQuery.set("search", params.search);
+  if (params.from) reportQuery.set("from", params.from);
+  if (params.to) reportQuery.set("to", params.to);
+  const queryString = reportQuery.toString();
+
+  const pdfUrl = `/api/reports/customer/pdf${queryString ? `?${queryString}` : ""}`;
+  const csvUrl = `/api/reports/customer/csv${queryString ? `?${queryString}` : ""}`;
+
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
+    <div className="flex flex-col gap-6 p-4 md:p-3">
       {/* Header */}
-      <div>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-800">
           Customer Report
         </h1>
+
+        <div className="flex gap-1">
+          <a
+            href={csvUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download CSV
+          </a>
+          <a
+            href={pdfUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download PDF
+          </a>
+        </div>
       </div>
 
       {/* Filters */}

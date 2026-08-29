@@ -1,10 +1,16 @@
-import ServiceReportFilters from "@/components/reports/ServiceReportFilters";
-import ServiceReportTable from "@/components/reports/ServiceReportTable";
+import ServiceReportFilters from "@/components/reports/service/ServiceReportFilters";
+import ServiceReportTable from "@/components/reports/service/ServiceReportTable";
 import {
   getServiceReport,
   getAllServiceNames,
 } from "@/lib/reports/serviceReport";
-import { Wrench, CalendarCheck, Layers, Banknote, Download } from "lucide-react";
+import {
+  Wrench,
+  CalendarCheck,
+  Layers,
+  Banknote,
+  Download,
+} from "lucide-react";
 
 type SearchParams = {
   search?: string;
@@ -43,20 +49,30 @@ const ServiceReportPage = async ({ searchParams }: Props) => {
     Boolean(params.to);
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
+    <div className="flex flex-col gap-6 p-4 md:p-3">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-800">
           Service Report
         </h1>
 
-        <a
-          href={`/api/reports/service/pdf?${searchParams.toString()}`}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-        >
-          <Download size={14} />
-          Download PDF
-        </a>
+        <div className="flex gap-1">
+          <a
+            href={`/api/reports/service/csv?${searchParams.toString()}`}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download CSV
+          </a>
+
+          <a
+            href={`/api/reports/service/pdf?${searchParams.toString()}`}
+            className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download PDF
+          </a>
+        </div>
       </div>
 
       {/* Filters */}

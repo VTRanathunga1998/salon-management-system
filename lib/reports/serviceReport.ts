@@ -52,16 +52,7 @@ function toNumber(value: unknown): number {
   return Number(value ?? 0);
 }
 
-/**
- * Builds a full service report.
- *
- * - Revenue considers ALL non-draft / non-cancelled / non-refunded
- *   invoices, regardless of whether they've been paid yet (this
- *   intentionally mirrors the customer report's status filter).
- * - When `serviceId` is provided, results are scoped to that single
- *   service (used for the drill-down view). `search` is otherwise used
- *   to pre-filter which services show up in the aggregate list.
- */
+
 export async function getServiceReport(
   filters: ServiceReportFilters = {},
 ): Promise<ServiceReportData> {
@@ -218,10 +209,6 @@ export async function getServiceReport(
   return { summary, services };
 }
 
-/**
- * Lightweight list of all services, used to power the search
- * dropdown in the filter bar (independent of the active date range).
- */
 export async function getAllServiceNames() {
   return prisma.service.findMany({
     select: { id: true, name: true, isActive: true },

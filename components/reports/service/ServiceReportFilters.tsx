@@ -16,7 +16,6 @@ type Props = {
 
 type PresetPeriod = "today" | "week" | "month" | "year";
 
-// Salon operates on UTC+4 (Dubai) — matches lib/reports/*.ts boundaries.
 function getSalonNow(): Date {
   const now = new Date();
   return new Date(now.getTime() + 4 * 60 * 60 * 1000);

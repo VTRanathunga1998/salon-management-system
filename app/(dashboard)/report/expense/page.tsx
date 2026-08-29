@@ -1,5 +1,5 @@
+import ExpenseReportDashboard from "@/components/reports/expense/ExpenseReportDashboard";
 import { getExpenseReportData } from "@/lib/reports/expense";
-import ExpenseReportDashboard from "@/components/reports/ExpenseReportDashboard";
 import {
   endOfDayInSalonTz,
   startOfDayInSalonTz,
@@ -8,15 +8,12 @@ import {
 
 function firstDayOfCurrentMonthInSalonTz(): string {
   const today = todayInSalonTz();
-
   const [year, month] = today.split("-").map(Number);
-
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
 function isValidDateString(value: string | undefined): value is string {
   if (!value) return false;
-
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
@@ -35,7 +32,6 @@ const ExpenseReportPage = async ({
   const defaultTo = todayInSalonTz();
 
   const fromDate = isValidDateString(params.from) ? params.from : defaultFrom;
-
   const toDate = isValidDateString(params.to) ? params.to : defaultTo;
 
   const from = startOfDayInSalonTz(fromDate);
@@ -56,6 +52,8 @@ const ExpenseReportPage = async ({
         report={report}
         from={from}
         to={to}
+        fromLabel={fromDate}
+        toLabel={toDate}
         selectedCategory={categoryId ?? "ALL"}
       />
     </div>

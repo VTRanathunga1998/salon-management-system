@@ -9,7 +9,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import ReportFilterBar from "./ReportFilterBar";
+import ReportFilterBar from "../ReportFilterBar";
 import EmployeeReportFilter from "./EmployeeReportFilter";
 import type { EmployeeReportData } from "@/lib/reports/employee";
 import {
@@ -25,20 +25,28 @@ const EmployeeReportDashboard = ({
   report,
   from,
   to,
+  fromLabel,
+  toLabel,
   employees,
   selectedEmployeeId,
 }: {
   report: EmployeeReportData;
   from: Date;
   to: Date;
+  fromLabel: string;
+  toLabel: string;
   employees: { id: string; name: string }[];
   selectedEmployeeId: string;
 }) => {
   const { summary, employeeStats, revenueSeries, log, range } = report;
 
-  const pdfUrl = `/api/reports/employee/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}${
-    selectedEmployeeId !== "all" ? `&employeeId=${selectedEmployeeId}` : ""
-  }`;
+  const employeeQuery =
+    selectedEmployeeId !== "all" ? `&employeeId=${selectedEmployeeId}` : "";
+
+  const pdfUrl = `/api/reports/employee/pdf?from=${fromLabel}&to=${toLabel}${employeeQuery}`;
+  const csvUrl = `/api/reports/employee/csv?from=${fromLabel}&to=${toLabel}${employeeQuery}`;
+
+  // ...rest unchanged
 
   const selectedName =
     selectedEmployeeId !== "all"
@@ -51,13 +59,24 @@ const EmployeeReportDashboard = ({
         <h1 className="text-2xl font-black tracking-tight text-slate-800">
           Employee Report{selectedName ? ` — ${selectedName}` : ""}
         </h1>
-        <a
-          href={pdfUrl}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-        >
-          <Download size={14} />
-          Download PDF
-        </a>
+
+        <div className="flex gap-1">
+          <a
+            href={csvUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download CSV
+          </a>
+
+          <a
+            href={pdfUrl}
+            className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download PDF
+          </a>
+        </div>
       </div>
 
       <ReportFilterBar from={from} to={to} />

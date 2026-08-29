@@ -27,10 +27,14 @@ const ReportDashboard = ({
   report,
   from,
   to,
+  fromLabel,
+  toLabel,
 }: {
   report: ReportData;
   from: Date;
   to: Date;
+  fromLabel: string;
+  toLabel: string;
 }) => {
   const {
     summary,
@@ -43,10 +47,9 @@ const ReportDashboard = ({
     range,
   } = report;
 
-  const pdfUrl = `/api/reports/overview/pdf?from=${toDateInputInSalonTz(from)}&to=${toDateInputInSalonTz(to)}`;
+  const pdfUrl = `/api/reports/overview/pdf?from=${fromLabel}&to=${toLabel}`;
+  const csvUrl = `/api/reports/overview/csv?from=${fromLabel}&to=${toLabel}`;
 
-  // Client-side filter over the already-fetched log — no extra server
-  // round-trip needed since the whole range's data is already in memory.
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
   const employeeOptions = useMemo(() => {
@@ -70,13 +73,23 @@ const ReportDashboard = ({
           Reports
         </h1>
 
-        <a
-          href={pdfUrl}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-        >
-          <Download size={14} />
-          Download PDF
-        </a>
+        <div className="flex gap-1">
+          <a
+            href={csvUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download CSV
+          </a>
+
+          <a
+            href={pdfUrl}
+            className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download PDF
+          </a>
+        </div>
       </div>
 
       <ReportFilterBar from={from} to={to} />
