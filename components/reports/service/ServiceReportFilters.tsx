@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Search, X, Download } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { getDashboardDateRange } from "@/lib/utils/timezone";
 
 type ServiceOption = { id: string; name: string; isActive: boolean };
 
@@ -16,41 +17,10 @@ type Props = {
 
 type PresetPeriod = "today" | "week" | "month" | "year";
 
-function getSalonNow(): Date {
-  const now = new Date();
-  return new Date(now.getTime() + 4 * 60 * 60 * 1000);
-}
-
-function fmt(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
 
 function periodRange(period: PresetPeriod): { from: string; to: string } {
-  const now = getSalonNow();
-  const to = fmt(now);
-
-  if (period === "today") {
-    return { from: to, to };
-  }
-
-  if (period === "week") {
-    const day = now.getUTCDay(); // 0 = Sun ... 6 = Sat
-    const diffToMonday = day === 0 ? 6 : day - 1;
-    const monday = new Date(now);
-    monday.setUTCDate(now.getUTCDate() - diffToMonday);
-    return { from: fmt(monday), to };
-  }
-
-  if (period === "month") {
-    const first = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    return { from: fmt(first), to };
-  }
-
-  // year
-  const first = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-  return { from: fmt(first), to };
+  const { from, to } = getDashboardDateRange(period);
+  return { from, to };
 }
 
 const PRESETS: { key: PresetPeriod; label: string }[] = [

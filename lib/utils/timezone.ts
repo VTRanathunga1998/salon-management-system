@@ -105,7 +105,7 @@ export function toMonthInSalonTz(d: Date | string): string {
   return `${year}-${month}`;
 }
 
-export type DashboardRangeType = "today" | "week" | "month" | "custom";
+export type DashboardRangeType = "today" | "week" | "month" | "year" | "custom";
 
 /** Shifts a "yyyy-mm-dd" string by N calendar days. Pure date-arithmetic,
  *  done in a fixed UTC anchor — safe because we only care about the
@@ -127,6 +127,11 @@ function getWeekStartDateString(dateStr: string): string {
 /** First day of the month containing the given "yyyy-mm-dd" date. */
 function getMonthStartDateString(dateStr: string): string {
   return `${dateStr.slice(0, 7)}-01`;
+}
+
+/** First day of the year containing the given "yyyy-mm-dd" date. */
+function getYearStartDateString(dateStr: string): string {
+  return `${dateStr.slice(0, 4)}-01-01`;
 }
 
 export function getDashboardDateRange(
@@ -157,6 +162,9 @@ export function getDashboardDateRange(
       break;
     case "week":
       from = getWeekStartDateString(today);
+      break;
+    case "year":
+      from = getYearStartDateString(today);
       break;
     case "month":
     default:
