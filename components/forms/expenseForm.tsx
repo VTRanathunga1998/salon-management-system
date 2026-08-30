@@ -70,9 +70,6 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
   const categories = relatedData?.categories ?? [];
   const subCategories = relatedData?.subCategories ?? [];
 
-  // Looked up once for defaultValues — figures out whether the expense
-  // being edited (if any) belongs to the salary category, since `data`
-  // itself no longer carries that as a literal string.
   const initialCategory = data?.categoryId
     ? categories.find((c) => c.id === data.categoryId)
     : undefined;
@@ -170,15 +167,15 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
     }
   }, [state, router, setOpen, type]);
 
-  const onSubmit = handleSubmit((formData) => {
-    startTransition(() => {
-      formAction(formData);
-    });
-  });
+  const onSubmit = handleSubmit(
+    (formData) => {
+      startTransition(() => formAction(formData));
+    },
+    () => {
+      toast.error("Please check the highlighted fields.");
+    },
+  );
 
-  /**
-   * Add another employee salary row.
-   */
   const handleAddEmployee = () => {
     const selectedIds = fields.map((_, index) =>
       watch(`salaryEntries.${index}.employeeId`),
@@ -199,11 +196,6 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
     });
   };
 
-  /**
-   * Employee options for each row.
-   *
-   * Prevent selecting the same employee twice.
-   */
   const getEmployeeOptions = (currentIndex: number) => {
     const selectedIds = fields.map((_, index) =>
       watch(`salaryEntries.${index}.employeeId`),
@@ -264,12 +256,17 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
                 onChange={(val) => {
                   field.onChange(val);
 
-                  // Category changed — a previously-picked subcategory may
-                  // no longer apply, so clear it.
                   setValue("subCategoryId", undefined);
 
                   const picked = categories.find((c) => c.id === val);
-                  setValue("isSalary", picked?.isSalary ?? false);
+                  const nextIsSalary = picked?.isSalary ?? false;
+                  setValue("isSalary", nextIsSalary);
+
+                  if (nextIsSalary) {
+                    setValue("amount", undefined);
+                  } else {
+                    setValue("salaryEntries", []);
+                  }
                 }}
               />
             )}
