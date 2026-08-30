@@ -29,10 +29,6 @@ interface CustomerComboboxProps {
 
 const formatLabel = (customer: CustomerOption) => customer.name;
 
-// Keep these in sync with the input filters below — they exist purely to
-// stop obviously-invalid characters from being typed. Zod (via
-// quickCustomerSchema) is still the actual source of truth and re-validates
-// everything on submit, so this is UX polish, not a security boundary.
 const stripNonDigits = (value: string) => value.replace(/\D/g, "");
 const stripInvalidNameChars = (value: string) =>
   value.replace(/[^a-zA-Z\s'-]/g, "");
@@ -59,12 +55,6 @@ const CustomerCombobox = ({
   }, [customers]);
 
   const selected = localCustomers.find((customer) => customer.id === value);
-
-  /*
-   * ---------------------------------------------------------
-   * Quick customer form
-   * ---------------------------------------------------------
-   */
 
   const {
     register,
@@ -114,12 +104,6 @@ const CustomerCombobox = ({
     };
   }, []);
 
-  /*
-   * ---------------------------------------------------------
-   * Search
-   * ---------------------------------------------------------
-   */
-
   const results = useMemo(() => {
     const search = query.trim().toLowerCase();
 
@@ -127,8 +111,6 @@ const CustomerCombobox = ({
       return localCustomers.slice(0, 8);
     }
 
-    // Strip non-digits so searching "071 524" or "071-524" still matches
-    // phone numbers, which are always stored as plain digit strings.
     const digitsOnlySearch = stripNonDigits(search);
 
     return localCustomers
@@ -146,17 +128,8 @@ const CustomerCombobox = ({
     (customer) => customer.name.toLowerCase() === query.trim().toLowerCase(),
   );
 
-  /*
-   * ---------------------------------------------------------
-   * Open create mode
-   * ---------------------------------------------------------
-   */
-
   const openCreateMode = () => {
     reset({
-      // Pre-fill from the search box, but only carry over valid name
-      // characters — the search box itself isn't restricted, so a query
-      // like "071..." shouldn't get shoved into the name field as-is.
       name: stripInvalidNameChars(query.trim()),
       phone: "",
       email: "",
@@ -167,15 +140,8 @@ const CustomerCombobox = ({
     setOpen(true);
   };
 
-  /*
-   * ---------------------------------------------------------
-   * Create customer
-   * ---------------------------------------------------------
-   */
-
   const handleCreate = async (data: QuickCustomerSchema) => {
     try {
-
       const result = await createQuickCustomer(data);
 
       if (!result.success || !result.customer) {
@@ -184,43 +150,21 @@ const CustomerCombobox = ({
         return;
       }
 
-      /*
-       * Add newly created customer locally.
-       */
       setLocalCustomers((previous) => [result.customer!, ...previous]);
 
-      /*
-       * Select newly created customer.
-       */
       onChange(result.customer.id);
 
-      /*
-       * Show selected customer.
-       */
       setQuery(result.customer.name);
 
-      /*
-       * Close create UI.
-       */
       setMode("search");
       setOpen(false);
 
-      /*
-       * Clear create form.
-       */
       reset();
 
-      /*
-       * Success toast.
-       */
       toast.success(`${result.customer.name} created successfully.`);
 
-      /*
-       * Refresh server components.
-       */
       router.refresh();
     } catch (error) {
-      // console.error("QUICK CUSTOMER ERROR:", error);
 
       toast.error("Something went wrong while creating the customer.");
     }
