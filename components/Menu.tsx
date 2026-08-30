@@ -40,44 +40,109 @@ const menuItems: MenuSection[] = [
   {
     title: "MENU",
     items: [
-      { icon: Home, label: "Home", href: "/home" },
-      { icon: Users, label: "Customers", href: "/customer" },
-      { icon: CalendarDays, label: "Appointments", href: "/appointment" },
-      { icon: Scissors, label: "Services", href: "/service" },
-      { icon: UserCog, label: "Employees", href: "/employee" },
-      { icon: FileText, label: "Invoices", href: "/invoice" },
-      { icon: WalletCards, label: "Expenses", href: "/expense" },
+      {
+        icon: Home,
+        label: "Home",
+        href: "/home",
+      },
+      {
+        icon: Users,
+        label: "Customers",
+        href: "/customer",
+      },
+      {
+        icon: CalendarDays,
+        label: "Appointments",
+        href: "/appointment",
+      },
+      {
+        icon: Scissors,
+        label: "Services",
+        href: "/service",
+      },
+      {
+        icon: UserCog,
+        label: "Employees",
+        href: "/employee",
+      },
+      {
+        icon: FileText,
+        label: "Invoices",
+        href: "/invoice",
+      },
+      {
+        icon: WalletCards,
+        label: "Expenses",
+        href: "/expense",
+      },
       {
         icon: BarChart3,
         label: "Reports",
         href: "/report",
         roles: ["OWNER", "ADMIN"],
         children: [
-          { label: "Overview Report", href: "/report" },
-          { label: "Employee Report", href: "/report/employee" },
-          { label: "Expense Report", href: "/report/expense" },
-          { label: "Customer Report", href: "/report/customer" },
-          { label: "Service Report", href: "/report/service" },
+          {
+            label: "Overview Report",
+            href: "/report",
+          },
+          {
+            label: "Employee Report",
+            href: "/report/employee",
+          },
+          {
+            label: "Expense Report",
+            href: "/report/expense",
+          },
+          {
+            label: "Customer Report",
+            href: "/report/customer",
+          },
+          {
+            label: "Service Report",
+            href: "/report/service",
+          },
         ],
       },
-      { icon: Settings, label: "Settings", href: "/setting" },
+      {
+        icon: Settings,
+        label: "Settings",
+        href: "/setting",
+      },
     ],
   },
 ];
 
 const Menu = ({ role }: { role: Role }) => {
   const pathname = usePathname();
-  const reportsRef = useRef<HTMLDivElement>(null);
-  const [reportsOpen, setReportsOpen] = useState(
-    pathname === "/report" || pathname.startsWith("/report/"),
-  );
 
+  const reportsRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * Reports should be open automatically when the user is
+   * currently inside any report page.
+   */
+  const isOnReportPage =
+    pathname === "/report" || pathname.startsWith("/report/");
+
+  const [reportsOpen, setReportsOpen] = useState(isOnReportPage);
+
+  /*
+   * Keep Reports open when navigating between report pages.
+   *
+   * IMPORTANT:
+   * We do NOT close the menu when clicking a child item.
+   * The pathname changes and this effect keeps the submenu open.
+   */
   useEffect(() => {
-    if (pathname === "/report" || pathname.startsWith("/report/")) {
+    if (isOnReportPage) {
       setReportsOpen(true);
     }
-  }, [pathname]);
+  }, [isOnReportPage]);
 
+  /*
+   * Close Reports when clicking anywhere outside
+   * the Reports menu.
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -87,27 +152,35 @@ const Menu = ({ role }: { role: Role }) => {
         setReportsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    // document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   return (
     <nav className="flex flex-col gap-1 px-2 py-4">
       {menuItems.map((section) => (
         <div key={section.title} className="flex flex-col gap-0.5">
+          {/* Section label */}
           <span className="hidden lg:block text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pt-4 pb-2 select-none">
             {section.title}
           </span>
 
+          {/* Menu items */}
           {section.items
             .filter((item) => {
-              const visible = !item.roles || item.roles.includes(role);
-              return visible;
+              return !item.roles || item.roles.includes(role);
             })
             .map((item) => {
               const Icon = item.icon;
+
               const hasChildren = !!item.children && item.children.length > 0;
+
               const isReportItem = item.label === "Reports";
+
               const isActive = hasChildren
                 ? pathname === item.href || pathname.startsWith(`${item.href}/`)
                 : pathname === item.href;
@@ -174,7 +247,15 @@ const Menu = ({ role }: { role: Role }) => {
                             <Link
                               key={child.href}
                               href={child.href}
-                              onClick={() => setReportsOpen(false)}
+                              /*
+                               * DO NOT close the menu here.
+                               *
+                               * This was causing:
+                               * close -> pathname change -> reopen
+                               *
+                               * Removing onClick keeps the submenu
+                               * visible while navigating.
+                               */
                               className={`px-3 py-2 rounded-lg text-xs transition-colors ${
                                 isChildActive
                                   ? "bg-blue-50 text-blue-700 font-semibold"

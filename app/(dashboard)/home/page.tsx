@@ -1,4 +1,4 @@
-import { Scissors, Users, Banknote, Receipt, FileText } from "lucide-react";
+import { Scissors, Users, Banknote, Receipt, FileText, CalendarDays } from "lucide-react";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentInvoicesTable from "@/components/dashboard/RecentInvoicesTable";
 import DashboardFilter from "@/components/dashboard/DashboardFilter";
@@ -77,6 +77,14 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
       description: `Expenses recorded ${rangeLabel}`,
       prefix: "AED ",
     },
+    {
+      title: "Total Appointments",
+      value: stats.totalAppointments,
+      icon: <CalendarDays className="h-5 w-5" />,
+      accent: "bg-cyan-500",
+      description: `Appointments scheduled ${rangeLabel}`,
+    },
+    
   ];
 
   return (
@@ -106,3 +114,5 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
 };
 
 export default DashboardPage;
+
+

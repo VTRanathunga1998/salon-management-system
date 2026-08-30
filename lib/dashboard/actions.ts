@@ -10,6 +10,7 @@ export async function getDashboardStats(
 
   const [
     totalServices,
+    totalAppointments,
     invoicesInRange,
     revenueAgg,
     expensesAgg,
@@ -21,6 +22,9 @@ export async function getDashboardStats(
         isActive: true,
       },
     }),
+
+    // Total Appointments in the selected date range
+    prisma.appointment.count({ where: { date: { gte: start, lte: end } } }),
 
     // All invoices in the selected range
     prisma.invoice.findMany({
@@ -106,6 +110,7 @@ export async function getDashboardStats(
 
   return {
     totalServices,
+    totalAppointments,
     totalCustomers,
     totalInvoices,
     revenue,
