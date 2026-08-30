@@ -117,31 +117,25 @@ const Menu = ({ role }: { role: Role }) => {
 
   const reportsRef = useRef<HTMLDivElement>(null);
 
-  /*
-   * Reports should be open automatically when the user is
-   * currently inside any report page.
-   */
-  const isOnReportPage =
+  const isReportPage =
     pathname === "/report" || pathname.startsWith("/report/");
 
-  const [reportsOpen, setReportsOpen] = useState(isOnReportPage);
+  const [reportsOpen, setReportsOpen] = useState(isReportPage);
 
   /*
-   * Keep Reports open when navigating between report pages.
+   * Keep Reports open while navigating between report pages.
    *
    * IMPORTANT:
-   * We do NOT close the menu when clicking a child item.
-   * The pathname changes and this effect keeps the submenu open.
+   * We don't close it when clicking a child menu item.
    */
   useEffect(() => {
-    if (isOnReportPage) {
+    if (isReportPage) {
       setReportsOpen(true);
     }
-  }, [isOnReportPage]);
+  }, [isReportPage]);
 
   /*
-   * Close Reports when clicking anywhere outside
-   * the Reports menu.
+   * Close Reports when clicking outside.
    */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -165,15 +159,12 @@ const Menu = ({ role }: { role: Role }) => {
       {menuItems.map((section) => (
         <div key={section.title} className="flex flex-col gap-0.5">
           {/* Section label */}
-          <span className="hidden lg:block text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pt-4 pb-2 select-none">
+          <span className="hidden lg:block px-3 pt-4 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 select-none">
             {section.title}
           </span>
 
-          {/* Menu items */}
           {section.items
-            .filter((item) => {
-              return !item.roles || item.roles.includes(role);
-            })
+            .filter((item) => !item.roles || item.roles.includes(role))
             .map((item) => {
               const Icon = item.icon;
 
@@ -201,7 +192,8 @@ const Menu = ({ role }: { role: Role }) => {
                     <button
                       type="button"
                       onClick={() => setReportsOpen((prev) => !prev)}
-                      className={`group w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                      aria-expanded={reportsOpen}
+                      className={`group w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
                         isActive || reportsOpen
                           ? "bg-blue-50 text-blue-700"
                           : "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
@@ -209,7 +201,7 @@ const Menu = ({ role }: { role: Role }) => {
                     >
                       {/* Icon */}
                       <span
-                        className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150 ${
+                        className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 ${
                           isActive || reportsOpen
                             ? "bg-blue-100 text-blue-600"
                             : "bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-600"
@@ -231,43 +223,60 @@ const Menu = ({ role }: { role: Role }) => {
 
                       {/* Arrow */}
                       <ChevronDown
-                        className={`hidden lg:block w-4 h-4 transition-transform duration-200 ${
-                          reportsOpen ? "rotate-180" : ""
+                        className={`hidden lg:block w-4 h-4 transition-transform duration-300 ease-out ${
+                          reportsOpen ? "rotate-180" : "rotate-0"
                         }`}
                       />
                     </button>
 
-                    {/* Submenu */}
-                    {reportsOpen && (
-                      <div className="hidden lg:flex flex-col ml-[42px] mt-1 mb-1 border-l border-slate-200 pl-3 gap-0.5">
-                        {item.children?.map((child) => {
-                          const isChildActive = pathname === child.href;
+                    {/*
+                     * -------------------------------------------------
+                     * ANIMATED SUBMENU
+                     * -------------------------------------------------
+                     *
+                     * Don't conditionally render this.
+                     * Keep it mounted and animate the container.
+                     */}
+                    <div
+                      className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                        reportsOpen
+                          ? "grid-rows-[1fr] opacity-100"
+                          : "grid-rows-[0fr] opacity-0"
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <div
+                          className={`flex flex-col ml-[42px] mt-1 mb-1 border-l border-slate-200 pl-3 gap-0.5 transition-transform duration-300 ease-out ${
+                            reportsOpen ? "translate-y-0" : "-translate-y-2"
+                          }`}
+                        >
+                          {item.children?.map((child) => {
+                            const isChildActive = pathname === child.href;
 
-                          return (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              /*
-                               * DO NOT close the menu here.
-                               *
-                               * This was causing:
-                               * close -> pathname change -> reopen
-                               *
-                               * Removing onClick keeps the submenu
-                               * visible while navigating.
-                               */
-                              className={`px-3 py-2 rounded-lg text-xs transition-colors ${
-                                isChildActive
-                                  ? "bg-blue-50 text-blue-700 font-semibold"
-                                  : "text-slate-500 hover:bg-slate-50 hover:text-blue-700"
-                              }`}
-                            >
-                              {child.label}
-                            </Link>
-                          );
-                        })}
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                /*
+                                 * IMPORTANT:
+                                 * Do NOT setReportsOpen(false) here.
+                                 *
+                                 * This keeps the submenu open while
+                                 * navigating between report pages.
+                                 */
+                                className={`px-3 py-2 rounded-lg text-xs transition-all duration-200 ${
+                                  isChildActive
+                                    ? "bg-blue-50 text-blue-700 font-semibold"
+                                    : "text-slate-500 hover:bg-slate-50 hover:text-blue-700"
+                                }`}
+                              >
+                                {child.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               }
@@ -281,7 +290,7 @@ const Menu = ({ role }: { role: Role }) => {
                 <Link
                   href={item.href}
                   key={item.label}
-                  className={`group flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                  className={`group flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
                     isActive
                       ? "bg-blue-50 text-blue-700"
                       : "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
@@ -289,7 +298,7 @@ const Menu = ({ role }: { role: Role }) => {
                 >
                   {/* Icon */}
                   <span
-                    className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150 ${
+                    className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 ${
                       isActive
                         ? "bg-blue-100 text-blue-600"
                         : "bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-600"

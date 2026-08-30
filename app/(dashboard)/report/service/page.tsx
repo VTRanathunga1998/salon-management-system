@@ -1,5 +1,6 @@
 import ServiceReportFilters from "@/components/reports/service/ServiceReportFilters";
 import ServiceReportTable from "@/components/reports/service/ServiceReportTable";
+import SummaryCard from "@/components/reports/SummaryCard";
 import {
   getServiceReport,
   getAllServiceNames,
@@ -89,25 +90,29 @@ const ServiceReportPage = async ({ searchParams }: Props) => {
         <SummaryCard
           label="Service Types"
           value={report.summary.totalServiceTypes.toString()}
-          icon={<Wrench size={19} />}
+          description="Different services performed"
+          icon={<Wrench size={18} />}
         />
 
         <SummaryCard
-          label="Bookings"
+          label="Service Entries"
           value={report.summary.totalBookings.toString()}
-          icon={<CalendarCheck size={19} />}
+          description="Invoice service entries"
+          icon={<CalendarCheck size={18} />}
         />
 
         <SummaryCard
-          label="Qty Sold"
+          label="Services Performed"
           value={report.summary.totalQuantity.toString()}
-          icon={<Layers size={19} />}
+          description="Total service units"
+          icon={<Layers size={18} />}
         />
 
         <SummaryCard
-          label="Total Revenue"
+          label="Service Revenue"
           value={money(report.summary.totalRevenue)}
-          icon={<Banknote size={19} />}
+          description="Revenue generated"
+          icon={<Banknote size={18} />}
         />
       </div>
 
@@ -123,30 +128,6 @@ const ServiceReportPage = async ({ searchParams }: Props) => {
         services={report.services}
         selectedServiceId={params.serviceId}
       />
-    </div>
-  );
-};
-
-const SummaryCard = ({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) => {
-  return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-gray-100 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500">
-          {icon}
-        </div>
-      </div>
-
-      <p className="mt-4 text-xs font-medium text-gray-400">{label}</p>
-
-      <p className="mt-1 truncate text-lg font-bold text-gray-800">{value}</p>
     </div>
   );
 };
