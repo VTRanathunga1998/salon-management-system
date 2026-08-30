@@ -93,9 +93,16 @@ const AppointmentListPage = async ({
     for (const [key, value] of Object.entries(queryParams)) {
       if (!value) continue;
       switch (key) {
-        case "search":
-          query.customer = { name: { contains: value, mode: "insensitive" } };
+        case "search": {
+          const digitsOnly = value.replace(/\D/g, "");
+          query.customer = {
+            OR: [
+              { name: { contains: value, mode: "insensitive" } },
+              ...(digitsOnly ? [{ phone: { contains: digitsOnly } }] : []),
+            ],
+          };
           break;
+        }
         case "from":
           query.date = {
             ...(query.date as object),

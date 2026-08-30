@@ -102,8 +102,32 @@ const InvoicesListPage = async ({
       if (value !== undefined) {
         switch (key) {
           case "search":
-            query.invoiceNumber = { contains: value, mode: "insensitive" };
+            query.OR = [
+              {
+                invoiceNumber: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+              {
+                customer: {
+                  name: {
+                    contains: value,
+                    mode: "insensitive",
+                  },
+                },
+              },
+              {
+                customer: {
+                  phone: {
+                    contains: value,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            ];
             break;
+
           case "status":
             query.status = value as InvoiceStatus;
             break;

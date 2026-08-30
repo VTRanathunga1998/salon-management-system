@@ -68,13 +68,14 @@ export async function getDashboardStats(
       },
     }),
 
-    // Recent invoices in the selected range
+    // Recent paid invoices in the selected range
     prisma.invoice.findMany({
       where: {
         createdAt: {
           gte: start,
           lte: end,
         },
+        status: "PAID",
       },
       take: 6,
       orderBy: {

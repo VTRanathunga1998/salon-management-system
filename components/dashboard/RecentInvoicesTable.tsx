@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { InvoiceStatus } from "@prisma/client";
+import { Download, Eye } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
@@ -51,6 +52,9 @@ const RecentInvoicesTable = ({ invoices }: { invoices: RecentInvoice[] }) => {
                 <th className="pb-2 pr-4 font-medium whitespace-nowrap">
                   Date
                 </th>
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -73,6 +77,35 @@ const RecentInvoicesTable = ({ invoices }: { invoices: RecentInvoice[] }) => {
                   </td>
                   <td className="py-3 pr-4 text-slate-400 whitespace-nowrap">
                     {formatDateInSalonTz(invoice.createdAt)}
+                  </td>
+                  <td className="py-3 pr-4 whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* View — jumps to the invoice list, pre-filtered
+                          by invoice number via the existing search param */}
+                      <Link
+                        href={`/invoice?search=${encodeURIComponent(
+                          invoice.invoiceNumber,
+                        )}`}
+                        title="View invoice"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
+
+                      {/* Download — hits the PDF route directly. A plain
+                          <a> (not a client-side Link) so the browser
+                          handles the download instead of Next.js trying
+                          to navigate/prefetch it. Relative URL so this
+                          keeps working across environments, not just
+                          localhost. */}
+                      <a
+                        href={`/api/invoices/${invoice.id}/pdf?download=true`}
+                        title="Download PDF"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}
