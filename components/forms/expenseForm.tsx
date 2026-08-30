@@ -384,14 +384,15 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
                     <div className="flex-1">
                       <InputField
                         label="Salary (AED)"
+                        type="number"
                         name={`salaryEntries.${index}.amount`}
                         register={register}
                         error={errors.salaryEntries?.[index]?.amount}
                         inputProps={{
                           type: "number",
-                          min: 0.01,
-                          step: "0.01",
-                          placeholder: "75000.00",
+                          min: 1,
+                          step: "1",
+                          placeholder: "750",
                         }}
                       />
                     </div>
@@ -474,8 +475,8 @@ const ExpenseForm = ({ type, data, setOpen, relatedData }: Props) => {
             register={register}
             error={errors.amount}
             inputProps={{
-              min: 0.01,
-              step: "0.01",
+              min: 1,
+              step: "1",
             }}
           />
 

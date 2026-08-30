@@ -324,20 +324,32 @@ export const expenseSchema = z
   .object({
     id: z.string().optional(),
     title: z.string().min(1, "Title is required"),
-    categoryId: z.string().min(1, "Category is required"),
+
+    categoryId: z
+      .string({ error: "Category is required" })
+      .min(1, "Category is required"),
+
     subCategoryId: z.string().optional(),
 
     isSalary: z.boolean().optional().default(false),
 
-    amount: z.coerce.number().positive().optional(),
-    method: z.enum(["CASH", "CARD", "BANK_TRANSFER", "CREDIT"]),
+    amount: z.coerce
+      .number()
+      .positive("Amount must be greater than 0!")
+      .optional(),
+
+    method: z.enum(["CASH", "CARD", "BANK_TRANSFER", "CREDIT"], {
+      error: "Payment method is required",
+    }),
     date: z.string().min(1, "Date is required"),
     notes: z.string().optional(),
     salaryEntries: z
       .array(
         z.object({
-          employeeId: z.string().min(1),
-          amount: z.coerce.number().positive(),
+          employeeId: z.string({ error: "Select an employee" }).min(1),
+          amount: z.coerce
+            .number()
+            .positive("Salary amount must be greater than 0!"),
         }),
       )
       .optional(),
