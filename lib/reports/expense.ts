@@ -4,7 +4,7 @@ import { toDateInputInSalonTz, toMonthInSalonTz } from "@/lib/utils/timezone";
 export interface ExpenseReportFilters {
   from: Date;
   to: Date;
-  categoryId?: string; // Expense.categoryId is a String FK to ExpenseCategory.id
+  categoryId?: string; 
 }
 
 export async function getExpenseReportData({

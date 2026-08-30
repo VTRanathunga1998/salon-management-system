@@ -67,6 +67,7 @@ const ExpenseReportDashboard = ({
 
   const pdfUrl = `/api/reports/expense/pdf?from=${fromLabel}&to=${toLabel}${categoryQuery}`;
   const csvUrl = `/api/reports/expense/csv?from=${fromLabel}&to=${toLabel}${categoryQuery}`;
+  const excelUrl = `/api/reports/expense/excel?from=${fromLabel}&to=${toLabel}${categoryQuery}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,6 +77,13 @@ const ExpenseReportDashboard = ({
         </h1>
 
         <div className="flex gap-1">
+          <a
+            href={excelUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download Excel
+          </a>
           <a
             href={csvUrl}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"

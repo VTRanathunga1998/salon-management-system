@@ -46,6 +46,7 @@ const CustomerReportPage = async ({ searchParams }: Props) => {
 
   const pdfUrl = `/api/reports/customer/pdf${queryString ? `?${queryString}` : ""}`;
   const csvUrl = `/api/reports/customer/csv${queryString ? `?${queryString}` : ""}`;
+  const excelUrl = `/api/reports/customer/excel${queryString ? `?${queryString}` : ""}`;
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-3">
@@ -56,6 +57,13 @@ const CustomerReportPage = async ({ searchParams }: Props) => {
         </h1>
 
         <div className="flex gap-1">
+          <a
+            href={excelUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download Excel
+          </a>
           <a
             href={csvUrl}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"

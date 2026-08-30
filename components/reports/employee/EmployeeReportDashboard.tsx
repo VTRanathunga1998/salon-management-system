@@ -45,8 +45,7 @@ const EmployeeReportDashboard = ({
 
   const pdfUrl = `/api/reports/employee/pdf?from=${fromLabel}&to=${toLabel}${employeeQuery}`;
   const csvUrl = `/api/reports/employee/csv?from=${fromLabel}&to=${toLabel}${employeeQuery}`;
-
-  // ...rest unchanged
+  const excelUrl = `/api/reports/employee/excel?from=${fromLabel}&to=${toLabel}${employeeQuery}`;
 
   const selectedName =
     selectedEmployeeId !== "all"
@@ -61,6 +60,14 @@ const EmployeeReportDashboard = ({
         </h1>
 
         <div className="flex gap-1">
+          <a
+            href={excelUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download Excel
+          </a>
+
           <a
             href={csvUrl}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"

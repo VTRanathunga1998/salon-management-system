@@ -49,6 +49,7 @@ const ReportDashboard = ({
 
   const pdfUrl = `/api/reports/overview/pdf?from=${fromLabel}&to=${toLabel}`;
   const csvUrl = `/api/reports/overview/csv?from=${fromLabel}&to=${toLabel}`;
+  const excelUrl = `/api/reports/overview/excel?from=${fromLabel}&to=${toLabel}`;
 
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
@@ -74,6 +75,13 @@ const ReportDashboard = ({
         </h1>
 
         <div className="flex gap-1">
+          <a
+            href={excelUrl}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            <Download size={14} />
+            Download Excel
+          </a>
           <a
             href={csvUrl}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
