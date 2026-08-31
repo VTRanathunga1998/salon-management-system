@@ -428,3 +428,71 @@ export type ExpenseSubCategorySchema = z.infer<typeof expenseSubCategorySchema>;
 export type ExpenseSubCategoryFormInput = z.input<
   typeof expenseSubCategorySchema
 >;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters."),
+    confirmPassword: z.string().min(1, "Please confirm your new password."),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords don't match.",
+    path: ["confirmPassword"],
+  });
+
+export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
+
+const roleEnum = z.enum(["ADMIN", "OWNER", "MANAGER", "RECEPTIONIST"]);
+
+const usernameSchema = z
+  .string()
+  .min(3, "Username must be at least 3 characters.")
+  .max(20, "Username must be under 20 characters.")
+  .regex(/^\S+$/, "Username cannot contain spaces.")
+  .regex(
+    /^[a-z0-9._-]+$/,
+    "Username must be lowercase letters, numbers, . _ or - only.",
+  );
+
+export const userFormSchema = (mode: "create" | "edit") =>
+  z
+    .object({
+      username: usernameSchema,
+      role: roleEnum,
+      password: z.string().optional().or(z.literal("")),
+      confirmPassword: z.string().optional().or(z.literal("")),
+    })
+    .superRefine((data, ctx) => {
+      const passwordProvided = !!data.password;
+
+      if (mode === "create" && !passwordProvided) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Password is required.",
+          path: ["password"],
+        });
+        return;
+      }
+
+      if (!passwordProvided) return; // edit mode, left blank — nothing else to check
+
+      if ((data.password ?? "").length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Password must be at least 8 characters.",
+          path: ["password"],
+        });
+      }
+
+      if (data.password !== data.confirmPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Passwords don't match.",
+          path: ["confirmPassword"],
+        });
+      }
+    });
+
+export type UserFormValues = z.infer<ReturnType<typeof userFormSchema>>;

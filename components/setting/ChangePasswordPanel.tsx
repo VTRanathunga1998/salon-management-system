@@ -2,13 +2,14 @@
 
 import { changeOwnPassword } from "@/lib/user/actions";
 import {
-  useActionState,
-  useEffect,
-  useRef,
-  useState,
-  startTransition,
-} from "react";
-import { toast } from "react-toastify"; // CHANGED — matches your actual toast library
+  changePasswordSchema,
+  type ChangePasswordFormValues,
+} from "@/lib/formValidationsSchemas";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useActionState, useEffect, useState, startTransition } from "react";
+import { useForm } from "react-hook-form";
+import { Eye, EyeOff } from "lucide-react";
+import { toast } from "react-toastify";
 
 const ChangePasswordPanel = () => {
   const [state, formAction, pending] = useActionState(changeOwnPassword, {
@@ -17,34 +18,37 @@ const ChangePasswordPanel = () => {
     message: "",
   });
 
-  // CHANGED — controlled fields instead of relying on native FormData
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
 
-  const submittedRef = useRef(false);
+  // Independent visibility toggle per field
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (state.success) {
       toast.success("Password changed.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      submittedRef.current = false;
+      reset();
     } else if (state.error && state.message) {
       toast.error(state.message);
-      submittedRef.current = false;
     }
-  }, [state]);
+  }, [state, reset]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (submittedRef.current) return; // NEW
-    submittedRef.current = true;
-
+  const onValid = (values: ChangePasswordFormValues) => {
     startTransition(() => {
-      formAction({ currentPassword, newPassword, confirmPassword }); // CHANGED — plain object, not native FormData
+      formAction(values);
     });
   };
 
@@ -55,47 +59,92 @@ const ChangePasswordPanel = () => {
         Update the password for your own account
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
-        {" "}
-        {/* CHANGED — onSubmit, not action */}
+      <form
+        onSubmit={handleSubmit(onValid)}
+        className="flex flex-col gap-4 mt-4"
+        noValidate
+      >
         <div>
           <label className="text-xs font-semibold text-slate-600">
             Current Password
           </label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400"
-          />
+          <div className="relative mt-1">
+            <input
+              type={showCurrent ? "text" : "password"}
+              {...register("currentPassword")}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 pr-10 outline-none focus:border-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrent((v) => !v)}
+              tabIndex={-1}
+              aria-label={showCurrent ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.currentPassword && (
+            <p className="text-xs text-red-500 mt-1">
+              {errors.currentPassword.message}
+            </p>
+          )}
         </div>
+
         <div>
           <label className="text-xs font-semibold text-slate-600">
             New Password
           </label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={8}
-            className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400"
-          />
+          <div className="relative mt-1">
+            <input
+              type={showNew ? "text" : "password"}
+              {...register("newPassword")}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 pr-10 outline-none focus:border-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew((v) => !v)}
+              tabIndex={-1}
+              aria-label={showNew ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.newPassword && (
+            <p className="text-xs text-red-500 mt-1">
+              {errors.newPassword.message}
+            </p>
+          )}
         </div>
+
         <div>
           <label className="text-xs font-semibold text-slate-600">
             Confirm New Password
           </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={8}
-            className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-400"
-          />
+          <div className="relative mt-1">
+            <input
+              type={showConfirm ? "text" : "password"}
+              {...register("confirmPassword")}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 pr-10 outline-none focus:border-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              tabIndex={-1}
+              aria-label={showConfirm ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="text-xs text-red-500 mt-1">
+              {errors.confirmPassword.message}
+            </p>
+          )}
         </div>
+
         <button
           type="submit"
           disabled={pending}
