@@ -46,7 +46,7 @@ const ViewInvoiceButton = ({ invoiceId }: { invoiceId: string }) => {
 
       {open && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60">
-          <div className="relative bg-white p-4 rounded-md w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[50%] max-h-[90vh] overflow-y-auto scrollbar-hidden">
+          <div className="relative bg-white p-4 rounded-md w-[90%] md:w-[80%] lg:w-[80%] xl:w-[70%] 2xl:w-[50%] max-h-[90vh] overflow-y-auto scrollbar-hidden">
             <button
               type="button"
               onClick={handleClose}
