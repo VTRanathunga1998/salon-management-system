@@ -35,6 +35,14 @@ type Props = {
   initialSubCategories: SubCategory[];
 };
 
+// Categories that never get subcategories. Salaries is flagged via
+// isSalary; "Other" has no dedicated schema flag, so it's matched by
+// name — safe to do since it's a seeded, isProtected category and can't
+// be renamed.
+function subcategoriesDisabledFor(cat: Category) {
+  return cat.isSalary || cat.name.trim().toLowerCase() === "other";
+}
+
 const ExpenseCategoriesPanel = ({
   initialCategories,
   initialSubCategories,
@@ -65,6 +73,13 @@ const ExpenseCategoriesPanel = ({
   const activeCategories = useMemo(
     () => categories.filter((c) => c.isActive),
     [categories],
+  );
+
+  // Salaries and "Other" are managed elsewhere / never take subcategories,
+  // so they don't need a card in this settings panel at all.
+  const manageableCategories = useMemo(
+    () => activeCategories.filter((c) => !subcategoriesDisabledFor(c)),
+    [activeCategories],
   );
 
   const grouped = useMemo(() => {
@@ -168,7 +183,7 @@ const ExpenseCategoriesPanel = ({
         setNewName("");
         setAddingFor(null);
       } else if (result.success) {
-        window.location.reload(); 
+        window.location.reload();
       } else {
         toast.error(result.message || "Failed to add subcategory.");
       }
@@ -288,7 +303,7 @@ const ExpenseCategoriesPanel = ({
 
       {/* Categories + their subcategories */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {activeCategories.map((cat) => {
+        {manageableCategories.map((cat) => {
           const items = grouped[cat.id] ?? [];
           const activeItems = items.filter((i) => i.isActive);
           const isAdding = addingFor === cat.id;
@@ -375,140 +390,131 @@ const ExpenseCategoriesPanel = ({
                 )}
               </div>
 
-              {/* Salaries never gets subcategories */}
-              {cat.isSalary ? (
-                <p className="text-xs text-slate-400 italic">
-                  Salaries don&apos;t use subcategories.
-                </p>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    {activeItems.length === 0 && !isAdding && (
-                      <p className="text-xs text-slate-400 italic">
-                        No subcategories yet.
-                      </p>
+              <div className="flex flex-col gap-1.5">
+                {activeItems.length === 0 && !isAdding && (
+                  <p className="text-xs text-slate-400 italic">
+                    No subcategories yet.
+                  </p>
+                )}
+
+                {activeItems.map((sc) => (
+                  <div
+                    key={sc.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                  >
+                    {editingId === sc.id ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              handleEditSave(sc.id, cat.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="flex-1 min-w-0 rounded-md ring-1 ring-slate-200 px-2 py-1 text-sm"
+                        />
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleEditSave(sc.id, cat.id)}
+                            className="text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+                            title="Save"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="text-slate-400 hover:text-slate-600"
+                            title="Cancel"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm text-slate-700 truncate">
+                          {sc.name}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(sc.id);
+                              setEditName(sc.name);
+                            }}
+                            className="text-slate-400 hover:text-blue-600"
+                            title="Rename"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleDeactivate(sc.id)}
+                            className="text-slate-400 hover:text-red-500 disabled:opacity-50"
+                            title="Remove"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </>
                     )}
-
-                    {activeItems.map((sc) => (
-                      <div
-                        key={sc.id}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
-                      >
-                        {editingId === sc.id ? (
-                          <>
-                            <input
-                              autoFocus
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter")
-                                  handleEditSave(sc.id, cat.id);
-                                if (e.key === "Escape") setEditingId(null);
-                              }}
-                              className="flex-1 min-w-0 rounded-md ring-1 ring-slate-200 px-2 py-1 text-sm"
-                            />
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() => handleEditSave(sc.id, cat.id)}
-                                className="text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
-                                title="Save"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingId(null)}
-                                className="text-slate-400 hover:text-slate-600"
-                                title="Cancel"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-sm text-slate-700 truncate">
-                              {sc.name}
-                            </span>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingId(sc.id);
-                                  setEditName(sc.name);
-                                }}
-                                className="text-slate-400 hover:text-blue-600"
-                                title="Rename"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() => handleDeactivate(sc.id)}
-                                className="text-slate-400 hover:text-red-500 disabled:opacity-50"
-                                title="Remove"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
                   </div>
+                ))}
+              </div>
 
-                  {isAdding ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAdd(cat.id);
-                          if (e.key === "Escape") {
-                            setAddingFor(null);
-                            setNewName("");
-                          }
-                        }}
-                        placeholder="Subcategory name"
-                        className="flex-1 min-w-0 rounded-md ring-1 ring-slate-200 px-2 py-1.5 text-sm"
-                      />
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => handleAdd(cat.id)}
-                        className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                      >
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAddingFor(null);
-                          setNewName("");
-                        }}
-                        className="text-slate-400 hover:text-slate-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingFor(cat.id);
+              {isAdding ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAdd(cat.id);
+                      if (e.key === "Escape") {
+                        setAddingFor(null);
                         setNewName("");
-                      }}
-                      className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-200 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add subcategory
-                    </button>
-                  )}
-                </>
+                      }
+                    }}
+                    placeholder="Subcategory name"
+                    className="flex-1 min-w-0 rounded-md ring-1 ring-slate-200 px-2 py-1.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleAdd(cat.id)}
+                    className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingFor(null);
+                      setNewName("");
+                    }}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingFor(cat.id);
+                    setNewName("");
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-200 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add subcategory
+                </button>
               )}
             </div>
           );

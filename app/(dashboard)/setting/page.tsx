@@ -53,7 +53,7 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 mx-auto">
       <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
       <p className="text-sm text-slate-500 mt-1">
         Manage users, security and other salon preferences

@@ -44,7 +44,7 @@ export async function createExpenseSubCategory(
   try {
     const category = await prisma.expenseCategory.findUnique({
       where: { id: parsed.data.categoryId },
-      select: { id: true, isActive: true, isSalary: true },
+      select: { id: true, name: true, isActive: true, isSalary: true },
     });
 
     if (!category || !category.isActive) {
@@ -60,6 +60,14 @@ export async function createExpenseSubCategory(
         success: false,
         error: true,
         message: "Salaries can't have subcategories.",
+      };
+    }
+
+    if (category.name.trim().toLowerCase() === "other") {
+      return {
+        success: false,
+        error: true,
+        message: "Other can't have subcategories.",
       };
     }
 
