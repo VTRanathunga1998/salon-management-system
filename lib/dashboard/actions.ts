@@ -9,17 +9,28 @@ export async function getDashboardStats(
   const { start, end } = getDashboardDateRange(rangeType, customFrom, customTo);
 
   const [
-    totalServices,
+    servicesAgg,
     totalAppointments,
     invoicesInRange,
     revenueAgg,
     expensesAgg,
     recentInvoicesRaw,
   ] = await Promise.all([
-    // Total Services: active services offered — not time-scoped
-    prisma.service.count({
+
+    prisma.invoiceItem.aggregate({
       where: {
-        isActive: true,
+        invoice: {
+          createdAt: {
+            gte: start,
+            lte: end,
+          },
+          status: {
+            notIn: ["REFUNDED", "CANCELLED"],
+          },
+        },
+      },
+      _sum: {
+        quantity: true,
       },
     }),
 
@@ -90,6 +101,8 @@ export async function getDashboardStats(
       },
     }),
   ]);
+
+  const totalServices = servicesAgg._sum.quantity ?? 0;
 
   const totalInvoices = invoicesInRange.length;
 
