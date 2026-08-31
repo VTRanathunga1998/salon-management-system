@@ -95,12 +95,20 @@ const AppointmentListPage = async ({
       switch (key) {
         case "search": {
           const digitsOnly = value.replace(/\D/g, "");
-          query.customer = {
-            OR: [
-              { name: { contains: value, mode: "insensitive" } },
-              ...(digitsOnly ? [{ phone: { contains: digitsOnly } }] : []),
-            ],
-          };
+
+          query.OR = [
+            { customer: { name: { contains: value, mode: "insensitive" } } },
+            ...(digitsOnly
+              ? [{ customer: { phone: { contains: digitsOnly } } }]
+              : []),
+            {
+              services: {
+                some: {
+                  serviceNameSnapshot: { contains: value, mode: "insensitive" },
+                },
+              },
+            },
+          ];
           break;
         }
         case "from":
