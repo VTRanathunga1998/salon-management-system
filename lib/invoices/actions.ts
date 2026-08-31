@@ -641,3 +641,21 @@ export async function recordInvoicePaymentWithDue(
     return { success: false, message };
   }
 }
+
+export async function getInvoiceById(id: string) {
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: invoiceInclude,
+    });
+
+    if (!invoice) {
+      return { success: false, message: "Invoice not found." };
+    }
+
+    return { success: true, invoice: serializeData(invoice) };
+  } catch (err) {
+    console.error("[getInvoiceById]", err);
+    return { success: false, message: "Failed to load invoice." };
+  }
+}

@@ -16,7 +16,6 @@ export async function getDashboardStats(
     expensesAgg,
     recentInvoicesRaw,
   ] = await Promise.all([
-
     prisma.invoiceItem.aggregate({
       where: {
         invoice: {
@@ -79,7 +78,6 @@ export async function getDashboardStats(
       },
     }),
 
-    // Recent paid invoices in the selected range
     prisma.invoice.findMany({
       where: {
         createdAt: {
@@ -88,16 +86,15 @@ export async function getDashboardStats(
         },
         status: "PAID",
       },
+
       take: 6,
       orderBy: {
         createdAt: "desc",
       },
       include: {
-        customer: {
-          select: {
-            name: true,
-          },
-        },
+        customer: true,
+        items: { include: { employees: { include: { employee: true } } } },
+        payments: { where: { status: "COMPLETED" } },
       },
     }),
   ]);

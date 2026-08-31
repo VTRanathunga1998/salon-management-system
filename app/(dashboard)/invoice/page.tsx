@@ -163,6 +163,7 @@ const InvoicesListPage = async ({
     prisma.invoice.count({ where: query }),
   ]);
 
+
   return (
     <div className="flex-1 bg-white p-6 mt-0 space-y-4 md:p-4">
       {/* ── Top bar ── */}
