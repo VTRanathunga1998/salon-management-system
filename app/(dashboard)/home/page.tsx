@@ -1,7 +1,15 @@
-import { Scissors, Users, Banknote, Receipt, FileText, CalendarDays } from "lucide-react";
+import {
+  Scissors,
+  Users,
+  Banknote,
+  Receipt,
+  FileText,
+  CalendarDays,
+} from "lucide-react";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentInvoicesTable from "@/components/dashboard/RecentInvoicesTable";
 import DashboardFilter from "@/components/dashboard/DashboardFilter";
+import DashboardAutoRefresh from "@/components/dashboard/DashboardAutoRefresh";
 import { getDashboardStats } from "@/lib/dashboard/actions";
 import { DashboardRangeType } from "@/lib/utils/timezone";
 
@@ -84,11 +92,12 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
       accent: "bg-cyan-500",
       description: `Appointments scheduled ${rangeLabel}`,
     },
-    
   ];
 
   return (
     <div className="p-6 space-y-8">
+      <DashboardAutoRefresh />
+
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-800">
@@ -114,5 +123,3 @@ const DashboardPage = async ({ searchParams }: DashboardPageProps) => {
 };
 
 export default DashboardPage;
-
-
