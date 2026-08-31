@@ -10,8 +10,3 @@ export function comparePasswords(
 ): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword);
 }
-function generateSalt(): never {
-  throw new Error(
-    "generateSalt() is obsolete — bcrypt manages salting internally. Remove this call.",
-  );
-}

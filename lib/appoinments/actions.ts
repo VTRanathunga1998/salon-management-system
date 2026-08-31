@@ -164,8 +164,6 @@ export async function updateAppointment(
     const startTime = combineDateAndTime(data.date, data.startTime);
     const endTime = combineDateAndTime(data.date, data.endTime);
 
-    // Skip the overlap check if this update is itself the cancellation —
-    // no point validating a time slot that's about to be freed up.
     if (data.status !== AppointmentStatus.CANCELLED) {
       await assertNoServiceOverlap({
         date,
@@ -176,9 +174,6 @@ export async function updateAppointment(
       });
     }
 
-    // NOTE: deleteMany on AppointmentService cascades to
-    // AppointmentServiceEmployee (onDelete: Cascade in schema), so the old
-    // junction rows are cleaned up automatically — no separate delete needed.
     await prisma.$transaction([
       prisma.appointmentService.deleteMany({
         where: { appointmentId: data.id },

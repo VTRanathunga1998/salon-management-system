@@ -1,4 +1,5 @@
 export type Role = "ADMIN" | "OWNER" | "MANAGER" | "RECEPTIONIST";
+
 export const ALL_PERMISSIONS = [
   "customer:view",
   "customer:create",
@@ -49,7 +50,6 @@ const ADMIN_ONLY: Permission[] = [
   "expense:manage-categories",
 ];
 
-// Permissions ADMIN + OWNER have, but MANAGER/RECEPTIONIST don't.
 const OWNER_ONLY: Permission[] = [
   "expense:create",
   "expense:update",
@@ -62,7 +62,6 @@ const OWNER_ONLY: Permission[] = [
   "expense:manage-categories",
 ];
 
-// Permissions MANAGER has but RECEPTIONIST doesn't.
 const RECEPTIONIST_DENY: Permission[] = [
   "service:create",
   "service:update",
@@ -122,23 +121,17 @@ export function hasAnyPermission(
   return permissions.some((p) => hasPermission(role, p));
 }
 
-/**
- * Which roles `actorRole` is allowed to assign when creating/editing a user.
- * This is separate from hasPermission because "can manage users" and
- * "can assign this specific role" are different questions.
- */
 export function assignableRoles(actorRole: Role): Role[] {
   switch (actorRole) {
     case "ADMIN":
-      return ["ADMIN", "OWNER", "MANAGER", "RECEPTIONIST"]; // full range
+      return ["ADMIN", "OWNER", "MANAGER", "RECEPTIONIST"];
     case "OWNER":
-      return ["MANAGER", "RECEPTIONIST"]; // per your rule — no Owner or Admin creation
+      return ["MANAGER", "RECEPTIONIST"];
     default:
       return [];
   }
 }
 
-// Add alongside assignableRoles and whatever exports permissions.ts already has
 export function canManageExpenseCategories(role: Role): boolean {
   return role === "OWNER" || role === "ADMIN";
 }

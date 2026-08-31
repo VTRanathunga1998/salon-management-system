@@ -43,7 +43,6 @@ export async function getSessionUser() {
         .delete({ where: { id: session.id } })
         .catch(() => {});
     }
-    // Do NOT touch cookies here — this runs inside Server Components too.
     return null;
   }
 

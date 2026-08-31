@@ -1,4 +1,3 @@
-// lib/auth/route-access-map.ts
 import type { Role } from "@/lib/auth/permissions";
 
 export const routeAccessMap: Record<string, Role[]> = {

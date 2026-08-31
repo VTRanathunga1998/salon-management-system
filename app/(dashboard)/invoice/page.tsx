@@ -9,6 +9,7 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { serializeData } from "@/lib/utils/serialize";
 import InvoiceStatusFilter from "@/components/invoice/Invoicestatusfilter";
 import { InvoiceStatus } from "@prisma/client";
+import { formatDateInSalonTz } from "@/lib/utils/timezone";
 
 type InvoiceList = Invoice & {
   customer: {
@@ -70,6 +71,10 @@ const InvoicesListPage = async ({
       accessor: "status",
     },
     {
+      header: "Date",
+      accessor: "date",
+    },
+    {
       header: "Actions",
       accessor: "actions",
     },
@@ -86,6 +91,10 @@ const InvoicesListPage = async ({
       </td>
       <td className="px-2 md:px-0 py-2">AED {Number(item.total).toFixed(2)}</td>
       <td className="px-2 md:px-0 py-2">{item.status}</td>
+      <td className="px-2 md:px-0 py-2">
+        {" "}
+        {formatDateInSalonTz(item.createdAt)}
+      </td>
       <td className="px-2 md:px-0 py-2">
         <div className="flex flex-row items-center gap-2 py-2">
           <FormContainer table="invoice" type="update" data={item} />

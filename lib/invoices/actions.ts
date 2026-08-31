@@ -4,6 +4,7 @@ import { Prisma, DiscountType, InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { InvoiceSchema } from "@/lib/formValidationsSchemas";
 import { serializeData } from "../utils/serialize";
+import { todayInSalonTz } from "../utils/timezone";
 
 type CurrentState = {
   success: boolean;
@@ -15,7 +16,7 @@ type CurrentState = {
 const TX_OPTS = { maxWait: 10000, timeout: 15000 };
 
 async function getNextInvoiceNumber(tx: Prisma.TransactionClient) {
-  const seriesKey = new Date().getFullYear().toString();
+  const seriesKey = todayInSalonTz().slice(0, 4);
   const counter = await tx.invoiceCounter.upsert({
     where: { seriesKey },
     create: { seriesKey, lastNumber: 1 },
@@ -561,8 +562,6 @@ export async function recordInvoicePaymentWithDue(
         remaining = remaining.sub(applied);
       }
 
-      // Whatever's left goes toward the current invoice. Its own `total`
-      // is untouched — only its payment/status change.
       const current = await tx.invoice.findUniqueOrThrow({
         where: { id: currentInvoiceId },
         include: { payments: { where: { status: "COMPLETED" } } },
@@ -608,7 +607,6 @@ export async function recordInvoicePaymentWithDue(
           data: { status: newCurrentStatus },
         });
       } else if (remaining.gt(0)) {
-
         changeGiven = Number(remaining);
       }
 

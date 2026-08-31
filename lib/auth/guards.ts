@@ -8,7 +8,7 @@ import {
   type Permission,
   type Role,
 } from "@/lib/auth/permissions";
-import { routeAccessMap } from "@/lib/auth/route-access-map"; // NEW
+import { routeAccessMap } from "@/lib/auth/route-access-map"; 
 
 export async function requireUser() {
   const user = await getSessionUser();
@@ -32,10 +32,6 @@ export async function requirePermission(permission: Permission) {
   return user;
 }
 
-/**
- * NEW — reads the current pathname (set by proxy.ts) and checks it
- * against routeAccessMap. This is the piece that makes the map real.
- */
 export async function requireRouteAccess() {
   const user = await requireUser();
   const pathname = (await headers()).get("x-pathname") ?? "/";
