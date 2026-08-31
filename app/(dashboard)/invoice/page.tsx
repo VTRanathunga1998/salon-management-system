@@ -10,6 +10,7 @@ import { serializeData } from "@/lib/utils/serialize";
 import InvoiceStatusFilter from "@/components/invoice/Invoicestatusfilter";
 import { InvoiceStatus } from "@prisma/client";
 import { formatDateInSalonTz } from "@/lib/utils/timezone";
+import InvoiceStatusBadge from "@/components/InvoiceStatusBadge";
 
 type InvoiceList = Invoice & {
   customer: {
@@ -90,7 +91,9 @@ const InvoicesListPage = async ({
         {item.customer.name}
       </td>
       <td className="px-2 md:px-0 py-2">AED {Number(item.total).toFixed(2)}</td>
-      <td className="px-2 md:px-0 py-2">{item.status}</td>
+      <td className="px-2 md:px-0 py-2">
+        <InvoiceStatusBadge status={item.status} />
+      </td>
       <td className="px-2 md:px-0 py-2">
         {" "}
         {formatDateInSalonTz(item.createdAt)}
